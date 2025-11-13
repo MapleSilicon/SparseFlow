@@ -5,8 +5,9 @@
 void registerAnnotateNmPass();
 void registerExportMetadataPass();
 void registerVerifySparsePatternPass();
-void registerSimpleGPULoweringPass();
 void registerGenerateSparseMaskPass();
+void registerSimpleGPULoweringPass();
+void registerSparseComputationPass();
 
 #if defined(_WIN32)
   #define MLIR_PASSP_PLUGIN_EXPORT __declspec(dllexport)
@@ -24,8 +25,9 @@ mlirGetPassPluginInfo() {
       registerAnnotateNmPass();
       registerExportMetadataPass();
       registerVerifySparsePatternPass();
-      registerSimpleGPULoweringPass();
       registerGenerateSparseMaskPass();
+      registerSimpleGPULoweringPass();
+      registerSparseComputationPass();
     }
   };
 }

@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Adjust paths if you move build dir.
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PLUGIN="$ROOT_DIR/compiler/build/passes/SparseFlowPasses.so"
 
@@ -10,6 +9,7 @@ exec mlir-opt-19 -load-pass-plugin "$PLUGIN" \
     sparseflow-annotate-nm{n=2 m=4},
     sparseflow-verify-pattern,
     sparseflow-generate-mask,
+    sparseflow-sparse-compute,
     sparseflow-simple-gpu-lowering,
     sparseflow-export-metadata
   ))' \

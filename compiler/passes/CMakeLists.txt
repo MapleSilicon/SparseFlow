@@ -3,8 +3,9 @@ add_library(SparseFlowPasses MODULE
   AnnotateNmPass.cpp
   ExportMetadataPass.cpp
   VerifySparsePatternPass.cpp
-  SimpleGPULoweringPass.cpp
   GenerateSparseMaskPass.cpp
+  SimpleGPULoweringPass.cpp
+  SparseComputationPass.cpp
 )
 
 target_include_directories(SparseFlowPasses PRIVATE
@@ -22,6 +23,7 @@ target_link_libraries(SparseFlowPasses PRIVATE
   MLIRTensorDialect
   MLIRMemRefDialect
   MLIRSCFDialect
+  MLIRArithDialect
 )
 
 set_target_properties(SparseFlowPasses PROPERTIES
