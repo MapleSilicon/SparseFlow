@@ -1,3 +1,0 @@
-/home/maplesilicon/src/SparseFlow/sim/core/build/CMakeFiles/sim_demo.dir
-/home/maplesilicon/src/SparseFlow/sim/core/build/CMakeFiles/edit_cache.dir
-/home/maplesilicon/src/SparseFlow/sim/core/build/CMakeFiles/rebuild_cache.dir
