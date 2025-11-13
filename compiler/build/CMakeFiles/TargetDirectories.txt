@@ -1,0 +1,15 @@
+/home/maplesilicon/src/SparseFlow/compiler/build/CMakeFiles/intrinsics_gen.dir
+/home/maplesilicon/src/SparseFlow/compiler/build/CMakeFiles/omp_gen.dir
+/home/maplesilicon/src/SparseFlow/compiler/build/CMakeFiles/acc_gen.dir
+/home/maplesilicon/src/SparseFlow/compiler/build/CMakeFiles/ARMTargetParserTableGen.dir
+/home/maplesilicon/src/SparseFlow/compiler/build/CMakeFiles/AArch64TargetParserTableGen.dir
+/home/maplesilicon/src/SparseFlow/compiler/build/CMakeFiles/RISCVTargetParserTableGen.dir
+/home/maplesilicon/src/SparseFlow/compiler/build/CMakeFiles/mlir-tablegen-targets.dir
+/home/maplesilicon/src/SparseFlow/compiler/build/CMakeFiles/mlir-headers.dir
+/home/maplesilicon/src/SparseFlow/compiler/build/CMakeFiles/mlir-generic-headers.dir
+/home/maplesilicon/src/SparseFlow/compiler/build/CMakeFiles/mlir-doc.dir
+/home/maplesilicon/src/SparseFlow/compiler/build/CMakeFiles/edit_cache.dir
+/home/maplesilicon/src/SparseFlow/compiler/build/CMakeFiles/rebuild_cache.dir
+/home/maplesilicon/src/SparseFlow/compiler/build/passes/CMakeFiles/SparseFlowPasses.dir
+/home/maplesilicon/src/SparseFlow/compiler/build/passes/CMakeFiles/edit_cache.dir
+/home/maplesilicon/src/SparseFlow/compiler/build/passes/CMakeFiles/rebuild_cache.dir
