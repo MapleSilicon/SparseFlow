@@ -1,8 +1,8 @@
-# SparseFlow: sparseflow-sparse-compute Pass
+# SparseFlow: `sparseflow-sparse-compute` Pass
 
-This pass lowers `linalg.matmul` with `sparseflow.nm` and `sparseflow.mask`
-attributes into explicit `scf.for` loop nests implementing a 2:4 style sparsity
-pattern on the K dimension.
+This pass lowers `linalg.matmul` ops annotated with `sparseflow.nm` and
+`sparseflow.mask` attributes into explicit `scf.for` loop nests implementing a
+2:4-style sparsity pattern on the K dimension.
 
 ## Pipeline
 

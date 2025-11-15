@@ -5,6 +5,7 @@
 namespace sparseflow {
 
 void registerSparseFlowPasses() {
+  registerFlopCounterPass();
   ::mlir::registerPass([]() {
     return sparseflow::createAnnotateNmPass();
   });

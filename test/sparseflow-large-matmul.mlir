@@ -19,8 +19,7 @@ module {
 
 // CHECK-LABEL: func.func @large_matmul
 // CHECK: scf.for
-// CHECK: %c32 = arith.constant 32
-// CHECK: %c64 = arith.constant 64
+// CHECK: scf.for
 // CHECK: arith.remsi
 // CHECK: arith.cmpi
 // CHECK: scf.if

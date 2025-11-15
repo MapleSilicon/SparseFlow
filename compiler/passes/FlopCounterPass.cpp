@@ -1,15 +1,9 @@
-cd ~/src/SparseFlow/compiler/passes
-
-cat > FlopCounterPass.cpp << 'EOF'
 #include "mlir/Pass/Pass.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Builders.h"
-#include "mlir/IR/PatternMatch.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
-#include "mlir/Dialect/Arith/IR/Arith.h"
-#include "mlir/Dialect/SCF/IR/SCF.h"
 
 using namespace mlir;
 
@@ -22,58 +16,51 @@ struct FlopCounterPass
   StringRef getArgument() const final { return "sparseflow-flop-counter"; }
 
   StringRef getDescription() const final {
-    return "Count FLOPs in sparse and dense matmul operations";
+    return "Count dense vs sparse FLOPs for linalg.matmul (2:4 pattern)";
   }
 
   void runOnOperation() override {
     func::FuncOp func = getOperation();
-    
-    int64_t totalFlops = 0;
-    int64_t sparseFlops = 0;
-    int64_t denseFlops = 0;
-    int64_t matmulCount = 0;
 
-    func.walk([&](Operation* op) {
-      // Count arithmetic operations
-      if (isa<arith::MulFOp>(op) || isa<arith::AddFOp>(op)) {
-        totalFlops++;
-      }
-      
-      // Count linalg.matmul operations and estimate their FLOPs
-      if (auto mm = dyn_cast<linalg::MatmulOp>(op)) {
-        matmulCount++;
-        auto lhsType = mm.getInputs()[0].getType().cast<RankedTensorType>();
-        auto rhsType = mm.getInputs()[1].getType().cast<RankedTensorType>();
-        
-        int64_t M = lhsType.getShape()[0];
-        int64_t K = lhsType.getShape()[1];
-        int64_t N = rhsType.getShape()[1];
-        
-        // Dense matmul FLOPs: 2*M*N*K (multiply + add for each element)
-        denseFlops += 2 * M * N * K;
-        
-        // Check if it's sparse
-        if (mm->getAttr("sparseflow.nm")) {
-          // For 2:4 sparsity, we only compute 50% of K dimension
-          sparseFlops += 2 * M * N * (K / 2); // 50% reduction
-        } else {
-          sparseFlops += 2 * M * N * K; // Same as dense
-        }
-      }
+    int64_t denseFlops = 0;
+    int64_t sparseFlops = 0;
+
+    func.walk([&](linalg::MatmulOp mm) {
+      auto lhsType = dyn_cast<RankedTensorType>(mm.getInputs()[0].getType());
+      auto rhsType = dyn_cast<RankedTensorType>(mm.getInputs()[1].getType());
+      if (!lhsType || !rhsType || lhsType.getRank() != 2 ||
+          rhsType.getRank() != 2)
+        return;
+
+      int64_t M = lhsType.getDimSize(0);
+      int64_t K = lhsType.getDimSize(1);
+      int64_t N = rhsType.getDimSize(1);
+
+      if (M < 0 || N < 0 || K < 0)
+        return;
+
+      // Dense matmul FLOPs ~ 2 * M * K * N (mul + add)
+      int64_t dense = 2 * M * K * N;
+      denseFlops += dense;
+
+      // For 2:4 sparsity on K dim, keep half of K positions.
+      int64_t effectiveK = K / 2;
+      int64_t sparse = 2 * M * effectiveK * N;
+      sparseFlops += sparse;
     });
 
-    // Emit results
-    func.emitRemark("FLOP Count Analysis:");
-    func.emitRemark("Total arithmetic operations: " + std::to_string(totalFlops));
-    if (matmulCount > 0) {
-      func.emitRemark("Matmul operations found: " + std::to_string(matmulCount));
-      func.emitRemark("Dense matmul FLOPs: " + std::to_string(denseFlops));
-      func.emitRemark("Sparse matmul FLOPs: " + std::to_string(sparseFlops));
-      if (denseFlops > 0) {
-        double savings = 100.0 * (1.0 - (double)sparseFlops / denseFlops);
-        func.emitRemark("Computation savings: " + std::to_string(savings) + "%");
-      }
-    }
+    if (denseFlops == 0)
+      return;
+
+    int64_t saved = denseFlops - sparseFlops;
+    double savingsPct =
+        100.0 * static_cast<double>(saved) / static_cast<double>(denseFlops);
+
+    func.emitRemark()
+        << "SparseFlow FLOPs (matmul only): dense=" << denseFlops
+        << " sparse=" << sparseFlops
+        << " saved=" << saved
+        << " (" << savingsPct << "%)";
   }
 };
 
@@ -82,4 +69,3 @@ struct FlopCounterPass
 void registerFlopCounterPass() {
   PassRegistration<FlopCounterPass>();
 }
-EOF
