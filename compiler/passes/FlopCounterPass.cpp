@@ -1,7 +1,6 @@
 #include "mlir/Pass/Pass.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Builders.h"
-
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 
@@ -12,6 +11,9 @@ namespace {
 struct FlopCounterPass
     : public PassWrapper<FlopCounterPass, OperationPass<func::FuncOp>> {
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(FlopCounterPass)
+
+  FlopCounterPass() = default;
+  FlopCounterPass(const FlopCounterPass &) = default;
 
   StringRef getArgument() const final { return "sparseflow-flop-counter"; }
 
@@ -25,47 +27,42 @@ struct FlopCounterPass
     int64_t denseFlops = 0;
     int64_t sparseFlops = 0;
 
-    func.walk([&](linalg::MatmulOp mm) {
-      auto lhsType = dyn_cast<RankedTensorType>(mm.getInputs()[0].getType());
-      auto rhsType = dyn_cast<RankedTensorType>(mm.getInputs()[1].getType());
-      if (!lhsType || !rhsType || lhsType.getRank() != 2 ||
-          rhsType.getRank() != 2)
-        return;
+    // Walk through all linalg.matmul operations in the function.
+    func.walk([&](linalg::MatmulOp matmulOp) {
+      // Get the types of the input matrices.
+      Type lhsType = matmulOp.getInputs()[0].getType();
+      Type rhsType = matmulOp.getInputs()[1].getType();
+      Type resultType = matmulOp.getOutputs()[0].getType();
 
-      int64_t M = lhsType.getDimSize(0);
-      int64_t K = lhsType.getDimSize(1);
-      int64_t N = rhsType.getDimSize(1);
+      // We assume that the matrices are 2D and of static shape.
+      auto lhsShape = lhsType.cast<RankedTensorType>().getShape();
+      auto rhsShape = rhsType.cast<RankedTensorType>().getShape();
+      auto resultShape = resultType.cast<RankedTensorType>().getShape();
 
-      if (M < 0 || N < 0 || K < 0)
-        return;
+      // For a matrix multiplication A (MxK) * B (KxN) -> C (MxN),
+      // the number of dense FLOPs is 2 * M * N * K.
+      int64_t M = resultShape[0];
+      int64_t N = resultShape[1];
+      int64_t K = lhsShape[1];
 
-      // Dense matmul FLOPs ~ 2 * M * K * N (mul + add)
-      int64_t dense = 2 * M * K * N;
-      denseFlops += dense;
+      denseFlops += 2 * M * N * K;
 
-      // For 2:4 sparsity on K dim, keep half of K positions.
-      int64_t effectiveK = K / 2;
-      int64_t sparse = 2 * M * effectiveK * N;
-      sparseFlops += sparse;
+      // For 2:4 sparsity, we assume that the left-hand side (LHS) is sparse.
+      // In 2:4 sparsity, every 4 elements have 2 non-zeros, so the number of non-zeros in LHS is (M * K) / 4 * 2 = (M * K) / 2.
+      // Then the number of sparse FLOPs is 2 * (number of non-zeros in LHS) * N = 2 * (M * K / 2) * N = M * K * N.
+      sparseFlops += M * K * N;
     });
 
-    if (denseFlops == 0)
-      return;
-
-    int64_t saved = denseFlops - sparseFlops;
-    double savingsPct =
-        100.0 * static_cast<double>(saved) / static_cast<double>(denseFlops);
-
-    func.emitRemark()
-        << "SparseFlow FLOPs (matmul only): dense=" << denseFlops
-        << " sparse=" << sparseFlops
-        << " saved=" << saved
-        << " (" << savingsPct << "%)";
+    // Print the results for this function.
+    if (denseFlops > 0) {
+      double sparsityRatio = 1.0 - (static_cast<double>(sparseFlops) / static_cast<double>(denseFlops));
+      func.emitRemark() << "Dense FLOPs: " << denseFlops << ", Sparse FLOPs (2:4): " << sparseFlops
+                        << ", Sparsity ratio: " << (sparsityRatio * 100.0) << "%";
+    }
   }
 };
-
 } // namespace
 
-void registerFlopCounterPass() {
-  PassRegistration<FlopCounterPass>();
+void registerFlopCounter() {
+  static mlir::PassRegistration<FlopCounterPass> reg;
 }

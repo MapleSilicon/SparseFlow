@@ -2,6 +2,7 @@
 #include "mlir/Pass/Pass.h"
 
 // Forward declarations for all SparseFlow passes.
+void registerFlopCounter();
 void registerAnnotateNmPass();
 void registerExportMetadataPass();
 void registerVerifySparsePatternPass();
@@ -22,6 +23,7 @@ mlirGetPassPluginInfo() {
     "SparseFlowPasses",
     "0.1",
     []() {
+      registerFlopCounter();
       registerAnnotateNmPass();
       registerExportMetadataPass();
       registerVerifySparsePatternPass();

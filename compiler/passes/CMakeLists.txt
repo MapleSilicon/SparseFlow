@@ -6,6 +6,8 @@ add_library(SparseFlowPasses MODULE
   GenerateSparseMaskPass.cpp
   SimpleGPULoweringPass.cpp
   SparseComputationPass.cpp
+  FlopCounterPass.cpp
+  NmConsumerPass.cpp
 )
 
 target_include_directories(SparseFlowPasses PRIVATE
@@ -20,7 +22,6 @@ target_link_libraries(SparseFlowPasses PRIVATE
   MLIRSupport
   MLIRFuncDialect
   MLIRLinalgDialect
-  MLIRTensorDialect
   MLIRMemRefDialect
   MLIRSCFDialect
   MLIRArithDialect

@@ -29,3 +29,4 @@ __pycache__/
 # VS Code / CLion / IDE stuff
 .vscode/
 .idea/
+backup/
