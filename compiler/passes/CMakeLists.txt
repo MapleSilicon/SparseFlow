@@ -1,36 +1,34 @@
+cmake_minimum_required(VERSION 3.20)
+
+find_package(LLVM REQUIRED CONFIG)
+find_package(MLIR REQUIRED CONFIG)
+list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}")
+include(TableGen)
+include(AddMLIR)
+
+include_directories(${LLVM_INCLUDE_DIRS} ${MLIR_INCLUDE_DIRS})
+add_definitions(${LLVM_DEFINITIONS})
+
 add_library(SparseFlowPasses MODULE
   SparseFlowPassPlugin.cpp
   AnnotateNmPass.cpp
   ExportMetadataPass.cpp
-  VerifySparsePatternPass.cpp
-  GenerateSparseMaskPass.cpp
-  SimpleGPULoweringPass.cpp
-  SparseComputationPass.cpp
   FlopCounterPass.cpp
-  NmConsumerPass.cpp
 )
 
-target_include_directories(SparseFlowPasses PRIVATE
-  ${LLVM_INCLUDE_DIRS}
-  ${MLIR_INCLUDE_DIRS}
-)
-add_definitions(${LLVM_DEFINITIONS})
+target_compile_features(SparseFlowPasses PRIVATE cxx_std_17)
 
-target_link_libraries(SparseFlowPasses PRIVATE
+target_link_libraries(SparseFlowPasses
   MLIRIR
   MLIRPass
-  MLIRSupport
   MLIRFuncDialect
   MLIRLinalgDialect
-  MLIRMemRefDialect
-  MLIRSCFDialect
-  MLIRArithDialect
+  MLIRSupport
 )
 
 set_target_properties(SparseFlowPasses PROPERTIES
-  OUTPUT_NAME "SparseFlowPasses"
   PREFIX ""
+  SUFFIX ".so"
+  OUTPUT_NAME "SparseFlowPasses"
   LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/passes"
-  BUILD_RPATH "/usr/lib/llvm-19/lib"
-  INSTALL_RPATH "/usr/lib/llvm-19/lib"
 )
