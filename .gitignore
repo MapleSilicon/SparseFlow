@@ -1,32 +1,8 @@
-# Top-level ignores
-*.swp
-*.swo
-*.log
-
-# Build dirs (CMake + Ninja)
-compiler/build/
-sim/core/build/
-
-# Installed artifacts
-compiler/install/
-
-# MLIR / LLVM build products
+build/
+*/build/
 *.o
 *.so
 *.a
-
-# CMake cache & files (if they end up elsewhere)
-CMakeCache.txt
-CMakeFiles/
-cmake_install.cmake
-build.ninja
-.rules.ninja
-
-# Python cache
-__pycache__/
-*.pyc
-
-# VS Code / CLion / IDE stuff
 .vscode/
-.idea/
-backup/
+*.swp
+*.swo
