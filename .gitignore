@@ -9,3 +9,9 @@ build/
 compiler/build/
 runtime/build/
 
+
+# Ignore build + generated files
+compiler/build/
+runtime/build/
+hardware_config.json
+sparseflow-github/
