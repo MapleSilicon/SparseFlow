@@ -1,5 +1,4 @@
 #!/bin/bash
-
 set -e
 
 echo "=== SparseFlow v0.1 — Full Pipeline Build & Test ==="
@@ -17,41 +16,29 @@ cmake .. \
   -DCMAKE_BUILD_TYPE=RelWithDebInfo \
   -DMLIR_DIR=/usr/lib/llvm-19/lib/cmake/mlir \
   -DLLVM_DIR=/usr/lib/llvm-19/lib/cmake/llvm
-make -j4
+make -j4 SparseFlowPasses
 
 echo ""
 echo "=== Step 2: Generate Hardware Configuration (hardware_config.json) ==="
-if [ -f "../test/sparseflow-large-matmul.mlir" ]; then
-    mlir-opt-19 -load-pass-plugin ./passes/SparseFlowPasses.so \
-      --pass-pipeline='builtin.module(func.func(sparseflow-annotate-nm,sparseflow-export-metadata))' \
-      ../test/sparseflow-large-matmul.mlir > hardware_config.json
-    echo "✓ hardware_config.json generated"
-    echo "File: $(pwd)/hardware_config.json"
-else
-    echo "✗ sparseflow-large-matmul.mlir not found"
-    echo "Available test files:"
-    ls ../test/ || echo "No test directory"
-    exit 1
-fi
+mlir-opt-19 -load-pass-plugin ./passes/SparseFlowPasses.so \
+  -pass-pipeline='builtin.module(func.func(sparseflow-annotate-nm),sparseflow-export-metadata)' \
+  ../test/sparseflow-large-matmul.mlir \
+  -o /dev/null > hardware_config.json
+
+echo "hardware_config.json written to:"
+echo "  $(pwd)/hardware_config.json"
 
 echo ""
-echo "=== Step 3: Build SparseFlow Runtime ==="
+echo "=== Step 3: Build Runtime ==="
 cd ../../runtime
 mkdir -p build
 cd build
-cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo
-make -j4
+cmake ..
+make -j4 sparseflow_test
 
 echo ""
-echo "=== Step 4: Test Complete Pipeline ==="
-if [ -f "sparseflow_test" ]; then
-    echo "✓ Runtime built successfully"
-    echo ""
-    ./sparseflow_test
-else
-    echo "✗ Failed to build runtime"
-    exit 1
-fi
+echo "=== Step 4: Run Runtime Demo ==="
+./sparseflow_test
 
 echo ""
 echo "=== SparseFlow v0.1 Pipeline Complete! ==="
