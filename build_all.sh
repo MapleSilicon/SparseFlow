@@ -7,6 +7,14 @@ echo ""
 echo "=== Cleaning old build directories ==="
 rm -rf compiler/build runtime/build
 
+# Choose which MLIR file to use for metadata export
+# Default: 64x64 "large" matmul
+MLIR_FILE="${SPARSEFLOW_MLIR_FILE:-compiler/test/sparseflow-large-matmul.mlir}"
+
+echo ""
+echo "Using MLIR file for metadata export:"
+echo "  $MLIR_FILE"
+
 echo ""
 echo "=== Step 1: Build SparseFlow Compiler Passes ==="
 cd compiler
@@ -21,10 +29,11 @@ make -j4 SparseFlowPasses
 echo ""
 echo "=== Step 2: Generate Hardware Configuration (hardware_config.json) ==="
 mlir-opt-19 -load-pass-plugin ./passes/SparseFlowPasses.so \
-  -pass-pipeline='builtin.module(func.func(sparseflow-annotate-nm),sparseflow-export-metadata)' \
-  ../test/sparseflow-large-matmul.mlir \
-  -o /dev/null > hardware_config.json
+  -pass-pipeline='builtin.module(sparseflow-export-metadata)' \
+  "../../$MLIR_FILE" > hardware_config.json
 
+echo "Exporting matmul configuration from:"
+echo "  $MLIR_FILE"
 echo "hardware_config.json written to:"
 echo "  $(pwd)/hardware_config.json"
 
@@ -33,7 +42,8 @@ echo "=== Step 3: Build Runtime ==="
 cd ../../runtime
 mkdir -p build
 cd build
-cmake ..
+cmake .. \
+  -DCMAKE_BUILD_TYPE=RelWithDebInfo
 make -j4 sparseflow_test
 
 echo ""
