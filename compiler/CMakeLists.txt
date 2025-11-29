@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 3.20)
-project(SparseFlowCompiler C CXX)
+project(SparseFlowCompiler)
 
 find_package(LLVM REQUIRED CONFIG)
 find_package(MLIR REQUIRED CONFIG)
+
 list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}")
 include(TableGen)
 include(AddMLIR)
