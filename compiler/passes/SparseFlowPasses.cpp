@@ -99,12 +99,6 @@ public:
         long long executedMACs = static_cast<long long>(totalMACs * activeFraction);
         double speedup = (activeFraction > 0.0) ? (1.0 / activeFraction) : 0.0;
 
-                long long totalMACs = 1ll * M * N * K;
-        double activeFraction =
-            (m_val > 0) ? static_cast<double>(n_val) / static_cast<double>(m_val) : 0.0;
-        long long executedMACs = static_cast<long long>(totalMACs * activeFraction);
-        double speedup = (activeFraction > 0.0) ? (1.0 / activeFraction) : 0.0;
-
         llvm::json::Object matmulInfo{
           {"type", "matmul"},
           {"M", M},
@@ -116,17 +110,6 @@ public:
           {"executedMACs", executedMACs},
           {"density", activeFraction},
           {"theoreticalSpeedup", speedup}
-        };
-
-        matmuls.push_back(std::move(matmulInfo));
-
-        llvm::outs() << "Exporting matmul: " << M << "x" << K
-                     << " * " << K << "x" << N
-                     << " with " << n_val << ":" << m_val << " sparsity\n"
-                     << "  totalMACs=" << totalMACs
-                     << " executedMACs=" << executedMACs
-                     << " density=" << activeFraction
-                     << " speedup=" << speedup << "x\n";
         };
 
         matmuls.push_back(std::move(matmulInfo));
@@ -170,4 +153,4 @@ void registerSparseFlowPasses() {
   PassRegistration<ExportMetadataPass>(
       "sparseflow-export-metadata",
       "Export hardware configuration metadata to JSON");
-
+}

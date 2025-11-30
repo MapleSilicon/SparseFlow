@@ -28,9 +28,10 @@ make -j4 SparseFlowPasses
 
 echo ""
 echo "=== Step 2: Generate Hardware Configuration (hardware_config.json) ==="
+# CORRECT PATH: Use the correct relative path from compiler/build
 mlir-opt-19 -load-pass-plugin ./passes/SparseFlowPasses.so \
   -pass-pipeline='builtin.module(sparseflow-export-metadata)' \
-  "../../$MLIR_FILE" > hardware_config.json
+  "../../$MLIR_FILE" > /dev/null
 
 echo "Exporting matmul configuration from:"
 echo "  $MLIR_FILE"

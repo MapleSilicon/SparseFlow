@@ -37,8 +37,8 @@ struct ExportMetadataPass
       int64_t dimM = -1, dimN = -1, dimK = -1;
       
       // Input A: [M x K], Input B: [K x N], Output C: [M x N]
-      auto inputAType = mlir::dyn_cast<ShapedType>(mm.getInputs()[0].getType());
-      auto inputBType = mlir::dyn_cast<ShapedType>(mm.getInputs()[1].getType());
+      auto inputAType = mm.getInputs()[0].getType().dyn_cast<ShapedType>();
+      auto inputBType = mm.getInputs()[1].getType().dyn_cast<ShapedType>();
       
       if (inputAType && inputAType.hasRank() && inputAType.getRank() == 2) {
         dimM = inputAType.getDimSize(0); // Rows of A
