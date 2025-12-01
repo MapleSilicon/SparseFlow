@@ -1,14 +1,10 @@
 #include "mlir/Tools/Plugins/PassPlugin.h"
 #include "mlir/Pass/Pass.h"
 
-// Forward declarations - NO namespace (they're global)
+// Forward declarations for all SparseFlow passes.
 void registerAnnotateNmPass();
-void registerFlopCounterPass();
-
-// This one IS in mlir namespace
-namespace mlir {
 void registerExportMetadataPass();
-}
+void registerFlopCounterPass();
 
 #if defined(_WIN32)
   #define MLIR_PASSP_PLUGIN_EXPORT __declspec(dllexport)
@@ -23,9 +19,9 @@ mlirGetPassPluginInfo() {
     "SparseFlowPasses",
     "0.1",
     []() {
-      registerAnnotateNmPass();           // global
-      mlir::registerExportMetadataPass(); // mlir::
-      registerFlopCounterPass();          // global
+      registerAnnotateNmPass();
+      registerExportMetadataPass();
+      registerFlopCounterPass();
     }
   };
 }

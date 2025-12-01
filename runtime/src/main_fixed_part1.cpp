@@ -1,7 +1,6 @@
 #include <cstdio>
 #include <fstream>
 #include <string>
-#include <vector>
 #include "nlohmann/json.hpp"
 
 using json = nlohmann::json;
@@ -44,27 +43,13 @@ bool loadHardwareConfig(SparseConfig &cfg) {
 
 int main() {
     SparseConfig cfg;
+    cfg.configPath = "/home/maplesilicon/src/SparseFlow/compiler/build/hardware_config.json";
     
-    // Try multiple relative paths
-    std::vector<std::string> candidates = {
-        "../../compiler/build/hardware_config.json",
-        "../compiler/build/hardware_config.json",
-        "compiler/build/hardware_config.json"
-    };
+    std::printf("[DEBUG] Loading hardware configuration from: %s\n", cfg.configPath.c_str());
     
-    bool loaded = false;
-    for (const auto& path : candidates) {
-        cfg.configPath = path;
-        std::printf("[DEBUG] Attempting to load: %s\n", path.c_str());
-        if (loadHardwareConfig(cfg)) {
-            std::printf("[DEBUG] ✅ Config loaded from: %s\n", path.c_str());
-            loaded = true;
-            break;
-        }
-    }
-    
+    bool loaded = loadHardwareConfig(cfg);
     if (!loaded) {
-        std::printf("[DEBUG] ⚠️  Could not load config, using defaults\n");
+        std::printf("[DEBUG] Using default configuration.\n");
     }
     
     int dim_m = cfg.M;

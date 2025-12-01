@@ -1,50 +1,37 @@
 # SparseFlow
 
-**Custom MLIR compiler for N:M structured sparsity acceleration**
+Custom MLIR-based compiler for **N:M structured sparsity** acceleration.
 
-🚀 **Status:** Production-ready MVP (v0.1)  
-📊 **Results:** Proven 2x speedup with 2:4 sparsity  
-🏗️ **Foundation:** MLIR/LLVM 19
+- 🎯 Target pattern: **2:4 sparsity (50% dense)**
+- ⚙️ Stack: **MLIR / LLVM 19** + custom passes
+- 📦 Output: **hardware_config.json** with matmul metadata (M, N, K, sparsity, MAC counts)
+- 🧪 Runtime: C++ test binary that programs a simulated "MapleSilicon" sparse accelerator
 
-## Quick Start
+---
+
+## Status
+
+- ✅ MLIR pass plugin (`SparseFlowPasses.so`) builds with LLVM/MLIR 19
+- ✅ Custom passes:
+  - `sparseflow-annotate-nm`
+  - `sparseflow-export-metadata`
+  - `sparseflow-flop-counter`
+- ✅ `sparseflow-export-metadata` emits `hardware_config.json`
+- ✅ Runtime reads JSON and configures the accelerator model
+- ✅ End-to-end pipeline: **MLIR → JSON → Runtime**
+
+---
+
+## Requirements
+
+- Ubuntu 22.04 (or similar)
+- LLVM / MLIR 19 (packages provide `mlir-opt-19`, `llvm-config-19`, etc.)
+- CMake, Make or Ninja
+- C++17 compiler (e.g., GCC 11)
+
+On typical Ubuntu with LLVM 19:
+
 ```bash
-./build_all.sh
-```
+sudo apt install llvm-19 llvm-19-dev mlir-19-tools clang-19 \
+                 libmlir-19-dev cmake ninja-build g++ python3
 
-## Performance
-
-| Matrix Size | Speedup | Compute Savings |
-|-------------|---------|-----------------|
-| 32×32       | 2.0x    | 50%             |
-| 128×128     | 2.0x    | 50%             |
-| 1024×1024   | 2.0x    | 50% (537M MACs) |
-
-## What Works
-
-✅ Compiler builds (24MB plugin)  
-✅ All passes load correctly  
-✅ End-to-end pipeline validated  
-✅ Runtime executes successfully  
-✅ Zero deprecation warnings  
-✅ Comprehensive test suite  
-
-## Quick Commands
-```bash
-# Build everything
-./build_all.sh
-
-# Run all tests
-./run_all_tests.sh
-
-# Test specific size
-SPARSEFLOW_MLIR_FILE=compiler/test/sparseflow-128x128.mlir ./build_all.sh
-```
-
-## For Investors
-
-- Working MVP with proven 2x speedup
-- Built on production infrastructure (MLIR)
-- Seeking $500K seed funding
-- 6-month path to Series A
-
-See PERFORMANCE_RESULTS.md for details.
