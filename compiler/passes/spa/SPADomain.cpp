@@ -1,5 +1,4 @@
 #include "SPADomain.h"
-
 #include <algorithm>
 
 namespace sparseflow {
