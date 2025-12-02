@@ -14,6 +14,8 @@ add_library(SparseFlowPasses MODULE
   AnnotateNmPass.cpp
   ExportMetadataPass.cpp
   FlopCounterPass.cpp
+  spa/SPADomain.cpp
+  spa/SparsityPropagationPass.cpp
 )
 
 target_compile_features(SparseFlowPasses PRIVATE cxx_std_17)
