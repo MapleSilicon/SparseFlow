@@ -35,6 +35,10 @@ struct SparsityPropagationPass
         handleAdd(addf);
       } else if (auto mulf = dyn_cast<arith::MulFOp>(op)) {
         handleMul(mulf);
+      } else if (auto subf = dyn_cast<arith::SubFOp>(op)) {
+        handleSub(subf);
+      } else if (auto divf = dyn_cast<arith::DivFOp>(op)) {
+        handleDiv(divf);
       }
     });
   }
@@ -122,6 +126,32 @@ private:
     MatrixSparsity out = intersectRows(a, b);
     S[res] = out;
     attachRowMaskAttr(mul, out);
+  }
+
+  void handleSub(arith::SubFOp sub) {
+    Value res = sub.getResult();
+    auto resType = mlir::dyn_cast<RankedTensorType>(res.getType());
+    if (!resType || resType.getRank() < 2) return;
+    int64_t rows = resType.getShape()[0];
+    if (rows <= 0) return;
+    MatrixSparsity a = getSparsity(sub.getLhs(), rows);
+    MatrixSparsity b = getSparsity(sub.getRhs(), rows);
+    MatrixSparsity out = unionRows(a, b);
+    S[res] = out;
+    attachRowMaskAttr(sub, out);
+  }
+
+  void handleDiv(arith::DivFOp div) {
+    Value res = div.getResult();
+    auto resType = mlir::dyn_cast<RankedTensorType>(res.getType());
+    if (!resType || resType.getRank() < 2) return;
+    int64_t rows = resType.getShape()[0];
+    if (rows <= 0) return;
+    MatrixSparsity a = getSparsity(div.getLhs(), rows);
+    MatrixSparsity b = getSparsity(div.getRhs(), rows);
+    MatrixSparsity out = unionRows(a, b);
+    S[res] = out;
+    attachRowMaskAttr(div, out);
   }
 };
 
