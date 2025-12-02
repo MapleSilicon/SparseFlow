@@ -6,6 +6,7 @@
 #include "mlir/Pass/Pass.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "llvm/ADT/SmallVector.h"
 
 using namespace mlir;
@@ -16,7 +17,9 @@ using sparseflow::MatrixSparsity;
 using sparseflow::SparsityMap;
 using sparseflow::intersectRows;
 using sparseflow::makeDenseRows;
+using sparseflow::makeDenseRowsCols;
 using sparseflow::unionRows;
+using sparseflow::transposeSparsity;
 
 struct SparsityPropagationPass
     : public PassWrapper<SparsityPropagationPass, OperationPass<ModuleOp>> {
@@ -39,6 +42,14 @@ struct SparsityPropagationPass
         handleSub(subf);
       } else if (auto divf = dyn_cast<arith::DivFOp>(op)) {
         handleDiv(divf);
+      } else if (auto trans = dyn_cast<linalg::TransposeOp>(op)) {
+        handleTranspose(trans);
+      } else if (auto maxf = dyn_cast<arith::MaximumFOp>(op)) {
+        handleMaximum(maxf);
+      } else if (auto reduce = dyn_cast<linalg::ReduceOp>(op)) {
+        handleReduce(reduce);
+      } else if (auto expand = dyn_cast<tensor::ExpandShapeOp>(op)) {
+        handleExpandShape(expand);
       }
     });
   }
@@ -152,6 +163,88 @@ private:
     MatrixSparsity out = unionRows(a, b);
     S[res] = out;
     attachRowMaskAttr(div, out);
+  }
+
+  void handleTranspose(linalg::TransposeOp trans) {
+    auto results = trans.getResult();
+    if (results.empty()) return;
+    Value res = results.front();
+    auto resType = mlir::dyn_cast<RankedTensorType>(res.getType());
+    if (!resType || resType.getRank() < 2) return;
+    int64_t rows = resType.getShape()[0];
+    if (rows <= 0) return;
+    Value input = trans.getInput();
+    if (!input) return;
+    auto inType = mlir::dyn_cast<RankedTensorType>(input.getType());
+    if (!inType || inType.getRank() < 2) return;
+    int64_t inRows = inType.getShape()[0];
+    MatrixSparsity inputS = getSparsity(input, inRows);
+    MatrixSparsity outS = transposeSparsity(inputS);
+    outS = normalizeRows(outS, rows);
+    S[res] = outS;
+    attachRowMaskAttr(trans, outS);
+  }
+
+  void handleMaximum(arith::MaximumFOp maxf) {
+    Value res = maxf.getResult();
+    auto resType = mlir::dyn_cast<RankedTensorType>(res.getType());
+    if (!resType || resType.getRank() < 2) return;
+    int64_t rows = resType.getShape()[0];
+    if (rows <= 0) return;
+    Value lhs = maxf.getLhs();
+    Value rhs = maxf.getRhs();
+    if (auto constOp = rhs.getDefiningOp<arith::ConstantOp>()) {
+      if (auto denseAttr = mlir::dyn_cast<DenseFPElementsAttr>(constOp.getValue())) {
+        bool isZero = denseAttr.isSplat() && 
+                      denseAttr.getSplatValue<APFloat>().isZero();
+        if (isZero) {
+          MatrixSparsity inputS = getSparsity(lhs, rows);
+          S[res] = inputS;
+          attachRowMaskAttr(maxf, inputS);
+          return;
+        }
+      }
+    }
+    MatrixSparsity a = getSparsity(lhs, rows);
+    MatrixSparsity b = getSparsity(rhs, rows);
+    MatrixSparsity out = unionRows(a, b);
+    S[res] = out;
+    attachRowMaskAttr(maxf, out);
+  }
+
+  void handleReduce(linalg::ReduceOp reduce) {
+    auto results = reduce.getResults();
+    if (results.empty()) return;
+    Value res = results.front();
+    auto resType = mlir::dyn_cast<RankedTensorType>(res.getType());
+    if (!resType) return;
+    if (resType.getRank() < 1) return;
+    int64_t rows = resType.getShape()[0];
+    if (rows <= 0) return;
+    auto inputs = reduce.getInputs();
+    if (inputs.empty()) return;
+    Value input = inputs.front();
+    auto inType = mlir::dyn_cast<RankedTensorType>(input.getType());
+    if (!inType || inType.getRank() < 2) return;
+    int64_t inRows = inType.getShape()[0];
+    MatrixSparsity inputS = getSparsity(input, inRows);
+    MatrixSparsity outS = normalizeRows(inputS, rows);
+    S[res] = outS;
+    attachRowMaskAttr(reduce, outS);
+  }
+
+  void handleExpandShape(tensor::ExpandShapeOp expand) {
+    Value res = expand.getResult();
+    auto resType = mlir::dyn_cast<RankedTensorType>(res.getType());
+    if (!resType || resType.getRank() < 2) return;
+    int64_t rows = resType.getShape()[0];
+    if (rows <= 0) return;
+    Value input = expand.getSrc();
+    auto inType = mlir::dyn_cast<RankedTensorType>(input.getType());
+    if (!inType) return;
+    MatrixSparsity inputS = getSparsity(input, rows);
+    S[res] = inputS;
+    attachRowMaskAttr(expand, inputS);
   }
 };
 
