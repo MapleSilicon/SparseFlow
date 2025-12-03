@@ -4,6 +4,7 @@
 // Forward declarations - NO namespace (they're global)
 void registerAnnotateNmPass();
 void registerFlopCounterPass();
+void registerSparsityPropagationPass();  // ⭐ SPA v0.6
 
 // This one IS in mlir namespace
 namespace mlir {
@@ -23,9 +24,10 @@ mlirGetPassPluginInfo() {
     "SparseFlowPasses",
     "0.1",
     []() {
-      registerAnnotateNmPass();           // global
-      mlir::registerExportMetadataPass(); // mlir::
-      registerFlopCounterPass();          // global
+      registerAnnotateNmPass();
+      mlir::registerExportMetadataPass();
+      registerFlopCounterPass();
+      registerSparsityPropagationPass();  // ⭐ SPA v0.6
     }
   };
 }

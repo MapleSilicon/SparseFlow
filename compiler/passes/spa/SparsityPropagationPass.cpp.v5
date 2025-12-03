@@ -300,7 +300,3 @@ std::unique_ptr<Pass> createSparsityPropagationPass() {
 }
 
 static PassRegistration<SparsityPropagationPass> regSparseFlowSPA;
-
-void registerSparsityPropagationPass() {
-  PassRegistration<SparsityPropagationPass>();
-}
