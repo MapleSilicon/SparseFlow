@@ -1,13 +1,12 @@
 #include "mlir/Tools/Plugins/PassPlugin.h"
 #include "mlir/Pass/Pass.h"
 
-// Forward declarations - NO namespace (they're global)
+// Forward declarations
 void registerAnnotateNmPass();
 void registerFlopCounterPass();
-void registerSPAExportPass();           // JSON export
-void registerSparsityPropagationPass();  // ⭐ SPA v0.6
+void registerSparsityPropagationPass();
+void registerSPAExportPass();
 
-// This one IS in mlir namespace
 namespace mlir {
 void registerExportMetadataPass();
 }
@@ -23,13 +22,13 @@ mlirGetPassPluginInfo() {
   return {
     MLIR_PLUGIN_API_VERSION,
     "SparseFlowPasses",
-    "0.1",
+    "0.7",
     []() {
-      registerSPAExportPass();           // JSON export
       registerAnnotateNmPass();
       mlir::registerExportMetadataPass();
       registerFlopCounterPass();
-      registerSparsityPropagationPass();  // ⭐ SPA v0.6
+      registerSparsityPropagationPass();
+      registerSPAExportPass();
     }
   };
 }

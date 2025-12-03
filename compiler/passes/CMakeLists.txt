@@ -7,6 +7,7 @@ include(TableGen)
 include(AddMLIR)
 
 include_directories(${LLVM_INCLUDE_DIRS} ${MLIR_INCLUDE_DIRS})
+include_directories(${CMAKE_SOURCE_DIR}/include)
 add_definitions(${LLVM_DEFINITIONS})
 
 add_library(SparseFlowPasses MODULE
