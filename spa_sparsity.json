@@ -1,0 +1,54 @@
+{
+  "operations": [
+    {
+      "id": 0,
+      "name": "sparseflow.mark",
+      "row_sparsity_pct": 50,
+      "rowmask": [
+        true,
+        false,
+        true,
+        false
+      ],
+      "total_rows": 4,
+      "zero_rows": 2
+    },
+    {
+      "col_sparsity_pct": 50,
+      "colmask": [
+        true,
+        true,
+        false,
+        false
+      ],
+      "id": 1,
+      "name": "sparseflow.mark",
+      "total_cols": 4,
+      "zero_cols": 2
+    },
+    {
+      "col_sparsity_pct": 50,
+      "colmask": [
+        true,
+        true,
+        false,
+        false
+      ],
+      "id": 2,
+      "name": "linalg.matmul",
+      "row_sparsity_pct": 50,
+      "rowmask": [
+        true,
+        false,
+        true,
+        false
+      ],
+      "total_cols": 4,
+      "total_rows": 4,
+      "zero_cols": 2,
+      "zero_rows": 2
+    }
+  ],
+  "sparse_operations": 3,
+  "total_operations": 3
+}

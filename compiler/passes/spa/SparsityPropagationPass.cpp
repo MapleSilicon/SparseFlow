@@ -1,305 +1,387 @@
-#include "SPADomain.h"
-#include "mlir/IR/Attributes.h"
-#include "mlir/IR/BuiltinOps.h"
-#include "mlir/IR/Operation.h"
-#include "mlir/IR/Types.h"
 #include "mlir/Pass/Pass.h"
-#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
-#include "llvm/ADT/SmallVector.h"
+#include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/BuiltinAttributes.h"
+#include "SPADomain.h"
 
 using namespace mlir;
+using namespace sparseflow;
 
 namespace {
 
-using sparseflow::MatrixSparsity;
-using sparseflow::SparsityMap;
-using sparseflow::intersectRows;
-using sparseflow::makeDenseRows;
-using sparseflow::makeDenseRowsCols;
-using sparseflow::unionRows;
-using sparseflow::transposeSparsity;
+using sparseflow::makeDense;
+using sparseflow::makeZero;
+using sparseflow::intersect2D;
+using sparseflow::union2D;
 
 struct SparsityPropagationPass
     : public PassWrapper<SparsityPropagationPass, OperationPass<ModuleOp>> {
-
+  
+  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(SparsityPropagationPass)
+  
   StringRef getArgument() const final { return "sparseflow-spa"; }
   StringRef getDescription() const final {
-    return "SparseFlow Sparsity Propagation Analysis (SPA) pass";
+    return "Propagate 2D sparsity (rows + cols) through operations - v0.6";
   }
-
+  
+  SparsityMap S;
+  
   void runOnOperation() override {
-    ModuleOp module = getOperation();
-    module.walk([&](Operation *op) {
+    getOperation().walk([&](Operation *op) {
       if (auto mm = dyn_cast<linalg::MatmulOp>(op)) {
         handleMatmul(mm);
-      } else if (auto addf = dyn_cast<arith::AddFOp>(op)) {
-        handleAdd(addf);
-      } else if (auto mulf = dyn_cast<arith::MulFOp>(op)) {
-        handleMul(mulf);
-      } else if (auto subf = dyn_cast<arith::SubFOp>(op)) {
-        handleSub(subf);
-      } else if (auto divf = dyn_cast<arith::DivFOp>(op)) {
-        handleDiv(divf);
-      } else if (auto trans = dyn_cast<linalg::TransposeOp>(op)) {
-        handleTranspose(trans);
+      } else if (auto add = dyn_cast<arith::AddFOp>(op)) {
+        handleAddLike(add);
+      } else if (auto sub = dyn_cast<arith::SubFOp>(op)) {
+        handleAddLike(sub);
+      } else if (auto mul = dyn_cast<arith::MulFOp>(op)) {
+        handleMulLike(mul);
+      } else if (auto div = dyn_cast<arith::DivFOp>(op)) {
+        handleMulLike(div);
       } else if (auto maxf = dyn_cast<arith::MaximumFOp>(op)) {
         handleMaximum(maxf);
+      } else if (auto trans = dyn_cast<linalg::TransposeOp>(op)) {
+        handleTranspose(trans);
       } else if (auto reduce = dyn_cast<linalg::ReduceOp>(op)) {
         handleReduce(reduce);
       } else if (auto expand = dyn_cast<tensor::ExpandShapeOp>(op)) {
-        handleExpandShape(expand);
+        handleBroadcast(expand);
       }
     });
   }
-
-private:
-  SparsityMap S;
-
-  MatrixSparsity normalizeRows(const MatrixSparsity &m, int64_t expectedRows) {
+  
+  MatrixSparsity normalize(const MatrixSparsity &m, int rows, int cols) {
+    if (rows < 0) rows = 0;
+    if (cols < 0) cols = 0;
+    
     MatrixSparsity out;
-    if (expectedRows <= 0) return out;
-    size_t rows = static_cast<size_t>(expectedRows);
     out.rowMask.assign(rows, 1);
-    size_t n = std::min(rows, m.rowMask.size());
-    for (size_t i = 0; i < n; ++i)
-      out.rowMask[i] = m.rowMask[i] ? 1 : 0;
+    out.colMask.assign(cols, 1);
+    
+    int r = std::min((int)m.rowMask.size(), rows);
+    int c = std::min((int)m.colMask.size(), cols);
+    
+    for (int i = 0; i < r; i++) out.rowMask[i] = m.rowMask[i];
+    for (int j = 0; j < c; j++) out.colMask[j] = m.colMask[j];
+    
     return out;
   }
-
-  MatrixSparsity getSparsity(Value v, int64_t expectedRows) {
-    if (auto it = S.find(v); it != S.end())
-      return normalizeRows(it->second, expectedRows);
-    if (Operation *defOp = v.getDefiningOp()) {
-      // Check for explicit rowmask first
-      if (auto arr = defOp->getAttrOfType<ArrayAttr>("sparseflow.spa_rowmask")) {
-        MatrixSparsity m;
+  
+  MatrixSparsity getSparsity(Value v, int rows, int cols) {
+    if (auto it = S.find(v); it != S.end()) {
+      return normalize(it->second, rows, cols);
+    }
+    
+    if (Operation *op = v.getDefiningOp()) {
+      MatrixSparsity m;
+      bool hasRowMask = false;
+      bool hasColMask = false;
+      
+      if (auto arr = op->getAttrOfType<ArrayAttr>("sparseflow.spa_rowmask")) {
         m.rowMask.reserve(arr.size());
-        for (Attribute attr : arr) {
-          if (auto b = dyn_cast<BoolAttr>(attr))
-            m.rowMask.push_back(b.getValue() ? 1 : 0);
-          else if (auto i = dyn_cast<IntegerAttr>(attr))
-            m.rowMask.push_back(i.getValue().isZero() ? 0 : 1);
-          else
-            m.rowMask.push_back(1);
+        for (auto a : arr) {
+          m.rowMask.push_back(cast<BoolAttr>(a).getValue() ? 1 : 0);
         }
-        return normalizeRows(m, expectedRows);
+        hasRowMask = true;
       }
       
-      // Check for N:M sparsity attributes (from AnnotateNm pass)
-      if (auto nAttr = defOp->getAttrOfType<IntegerAttr>("sparseflow.n")) {
-        if (auto mAttr = defOp->getAttrOfType<IntegerAttr>("sparseflow.m")) {
+      if (auto arr = op->getAttrOfType<ArrayAttr>("sparseflow.spa_colmask")) {
+        m.colMask.reserve(arr.size());
+        for (auto a : arr) {
+          m.colMask.push_back(cast<BoolAttr>(a).getValue() ? 1 : 0);
+        }
+        hasColMask = true;
+      }
+      
+      if (hasRowMask || hasColMask) {
+        if (!hasRowMask) m.rowMask.assign(rows, 1);
+        if (!hasColMask) m.colMask.assign(cols, 1);
+        return normalize(m, rows, cols);
+      }
+      
+      if (auto nAttr = op->getAttrOfType<IntegerAttr>("sparseflow.n")) {
+        if (auto mAttr = op->getAttrOfType<IntegerAttr>("sparseflow.m")) {
           int n = nAttr.getInt();
-          int m = mAttr.getInt();
+          int m_val = mAttr.getInt();
           
-          // N:M means N out of M values are non-zero
-          // Estimate row-level sparsity using N:M pattern
           MatrixSparsity sparse;
-          sparse.rowMask.reserve(static_cast<size_t>(expectedRows));
-          
-          // Create a repeating pattern based on N:M ratio
-          // If n/m = 0.5 (2:4), alternate rows: true, false, true, false
-          // If n/m = 0.25 (1:4), pattern: true, false, false, false
-          for (int64_t i = 0; i < expectedRows; ++i) {
-            // Row is "maybe non-zero" if (i % m) < n
-            bool rowActive = ((i % m) < n);
+          sparse.rowMask.reserve(rows);
+          for (int i = 0; i < rows; ++i) {
+            bool rowActive = ((i % m_val) < n);
             sparse.rowMask.push_back(rowActive ? 1 : 0);
           }
-          
+          sparse.colMask.assign(cols, 1);
           return sparse;
         }
       }
+      
+      if (auto constOp = dyn_cast<arith::ConstantOp>(op)) {
+        if (auto denseAttr = dyn_cast<DenseFPElementsAttr>(constOp.getValue())) {
+          if (denseAttr.isSplat()) {
+            auto val = denseAttr.getSplatValue<APFloat>();
+            if (val.isZero()) {
+              return makeZero(rows, cols);
+            }
+          }
+        }
+      }
     }
-    return makeDenseRows(static_cast<int>(expectedRows));
+    
+    return makeDense(rows, cols);
   }
-
-  void attachRowMaskAttr(Operation *op, const MatrixSparsity &info) {
+  
+  void attach(Operation *op, const MatrixSparsity &info) {
     MLIRContext *ctx = op->getContext();
-    llvm::SmallVector<Attribute, 8> elems;
-    elems.reserve(info.rowMask.size());
-    for (std::uint8_t bit : info.rowMask)
-      elems.push_back(BoolAttr::get(ctx, bit != 0));
-    op->setAttr("sparseflow.spa_rowmask", ArrayAttr::get(ctx, elems));
+    
+    llvm::SmallVector<Attribute, 8> rowElems;
+    rowElems.reserve(info.rowMask.size());
+    for (auto bit : info.rowMask) {
+      rowElems.push_back(BoolAttr::get(ctx, bit != 0));
+    }
+    op->setAttr("sparseflow.spa_rowmask", ArrayAttr::get(ctx, rowElems));
+    
+    llvm::SmallVector<Attribute, 8> colElems;
+    colElems.reserve(info.colMask.size());
+    for (auto bit : info.colMask) {
+      colElems.push_back(BoolAttr::get(ctx, bit != 0));
+    }
+    op->setAttr("sparseflow.spa_colmask", ArrayAttr::get(ctx, colElems));
   }
-
+  
   void handleMatmul(linalg::MatmulOp mm) {
     Value result = mm.getResult(0);
-    auto resultType = mlir::dyn_cast<RankedTensorType>(result.getType());
+    auto resultType = dyn_cast<RankedTensorType>(result.getType());
     if (!resultType || resultType.getRank() < 2) return;
-    int64_t rows = resultType.getShape()[0];
-    if (rows <= 0) return;
     
-    // Check if this matmul has N:M sparsity annotation
-    MatrixSparsity outS;
+    int64_t rows = resultType.getShape()[0];
+    int64_t cols = resultType.getShape()[1];
+    if (rows <= 0 || cols <= 0) return;
+    
     if (auto nAttr = mm->getAttrOfType<IntegerAttr>("sparseflow.n")) {
       if (auto mAttr = mm->getAttrOfType<IntegerAttr>("sparseflow.m")) {
         int n = nAttr.getInt();
-        int m = mAttr.getInt();
-        // Create pattern from N:M
-        outS.rowMask.reserve(static_cast<size_t>(rows));
+        int m_val = mAttr.getInt();
+        
+        MatrixSparsity outS;
+        outS.rowMask.reserve(rows);
         for (int64_t i = 0; i < rows; ++i) {
-          bool rowActive = ((i % m) < n);
+          bool rowActive = ((i % m_val) < n);
           outS.rowMask.push_back(rowActive ? 1 : 0);
         }
+        outS.colMask.assign(cols, 1);
+        
         S[result] = outS;
-        attachRowMaskAttr(mm, outS);
+        attach(mm, outS);
         return;
       }
     }
     
-    // Otherwise, use input sparsity
-    Value lhs;
     auto inputs = mm.getInputs();
-    if (!inputs.empty()) lhs = inputs.front();
-    MatrixSparsity lhsS = lhs ? getSparsity(lhs, rows) : makeDenseRows(static_cast<int>(rows));
-    outS = normalizeRows(lhsS, rows);
+    if (inputs.size() < 2) return;
+    
+    Value lhs = inputs[0];
+    Value rhs = inputs[1];
+    
+    auto lhsType = dyn_cast<RankedTensorType>(lhs.getType());
+    auto rhsType = dyn_cast<RankedTensorType>(rhs.getType());
+    if (!lhsType || !rhsType) return;
+    
+    int64_t lhsCols = lhsType.getShape()[1];
+    int64_t rhsRows = rhsType.getShape()[0];
+    
+    MatrixSparsity lhsS = getSparsity(lhs, rows, lhsCols);
+    MatrixSparsity rhsS = getSparsity(rhs, rhsRows, cols);
+    
+    MatrixSparsity outS;
+    outS.rowMask = lhsS.rowMask;
+    outS.colMask = rhsS.colMask;
+    
     S[result] = outS;
-    attachRowMaskAttr(mm, outS);
+    attach(mm, outS);
   }
-
-  void handleAdd(arith::AddFOp add) {
-    Value res = add.getResult();
-    auto resType = mlir::dyn_cast<RankedTensorType>(res.getType());
-    if (!resType || resType.getRank() < 2) return;
-    int64_t rows = resType.getShape()[0];
-    if (rows <= 0) return;
-    MatrixSparsity a = getSparsity(add.getLhs(), rows);
-    MatrixSparsity b = getSparsity(add.getRhs(), rows);
-    MatrixSparsity out = unionRows(a, b);
-    S[res] = out;
-    attachRowMaskAttr(add, out);
+  
+  void handleAddLike(Operation *op) {
+    Value result = op->getResult(0);
+    auto resultType = dyn_cast<RankedTensorType>(result.getType());
+    if (!resultType || resultType.getRank() < 2) return;
+    
+    int64_t rows = resultType.getShape()[0];
+    int64_t cols = resultType.getShape()[1];
+    
+    Value lhs = op->getOperand(0);
+    Value rhs = op->getOperand(1);
+    
+    MatrixSparsity lhsS = getSparsity(lhs, rows, cols);
+    MatrixSparsity rhsS = getSparsity(rhs, rows, cols);
+    
+    MatrixSparsity outS = union2D(lhsS, rhsS);
+    
+    S[result] = outS;
+    attach(op, outS);
   }
-
-  void handleMul(arith::MulFOp mul) {
-    Value res = mul.getResult();
-    auto resType = mlir::dyn_cast<RankedTensorType>(res.getType());
-    if (!resType || resType.getRank() < 2) return;
-    int64_t rows = resType.getShape()[0];
-    if (rows <= 0) return;
-    MatrixSparsity a = getSparsity(mul.getLhs(), rows);
-    MatrixSparsity b = getSparsity(mul.getRhs(), rows);
-    MatrixSparsity out = intersectRows(a, b);
-    S[res] = out;
-    attachRowMaskAttr(mul, out);
+  
+  void handleMulLike(Operation *op) {
+    Value result = op->getResult(0);
+    auto resultType = dyn_cast<RankedTensorType>(result.getType());
+    if (!resultType || resultType.getRank() < 2) return;
+    
+    int64_t rows = resultType.getShape()[0];
+    int64_t cols = resultType.getShape()[1];
+    
+    Value lhs = op->getOperand(0);
+    Value rhs = op->getOperand(1);
+    
+    MatrixSparsity lhsS = getSparsity(lhs, rows, cols);
+    MatrixSparsity rhsS = getSparsity(rhs, rows, cols);
+    
+    MatrixSparsity outS = intersect2D(lhsS, rhsS);
+    
+    S[result] = outS;
+    attach(op, outS);
   }
-
-  void handleSub(arith::SubFOp sub) {
-    Value res = sub.getResult();
-    auto resType = mlir::dyn_cast<RankedTensorType>(res.getType());
-    if (!resType || resType.getRank() < 2) return;
-    int64_t rows = resType.getShape()[0];
-    if (rows <= 0) return;
-    MatrixSparsity a = getSparsity(sub.getLhs(), rows);
-    MatrixSparsity b = getSparsity(sub.getRhs(), rows);
-    MatrixSparsity out = unionRows(a, b);
-    S[res] = out;
-    attachRowMaskAttr(sub, out);
-  }
-
-  void handleDiv(arith::DivFOp div) {
-    Value res = div.getResult();
-    auto resType = mlir::dyn_cast<RankedTensorType>(res.getType());
-    if (!resType || resType.getRank() < 2) return;
-    int64_t rows = resType.getShape()[0];
-    if (rows <= 0) return;
-    MatrixSparsity a = getSparsity(div.getLhs(), rows);
-    MatrixSparsity b = getSparsity(div.getRhs(), rows);
-    MatrixSparsity out = unionRows(a, b);
-    S[res] = out;
-    attachRowMaskAttr(div, out);
-  }
-
-  void handleTranspose(linalg::TransposeOp trans) {
-    auto results = trans.getResult();
-    if (results.empty()) return;
-    Value res = results.front();
-    auto resType = mlir::dyn_cast<RankedTensorType>(res.getType());
-    if (!resType || resType.getRank() < 2) return;
-    int64_t rows = resType.getShape()[0];
-    if (rows <= 0) return;
-    Value input = trans.getInput();
-    if (!input) return;
-    auto inType = mlir::dyn_cast<RankedTensorType>(input.getType());
-    if (!inType || inType.getRank() < 2) return;
-    int64_t inRows = inType.getShape()[0];
-    MatrixSparsity inputS = getSparsity(input, inRows);
-    MatrixSparsity outS = transposeSparsity(inputS);
-    outS = normalizeRows(outS, rows);
-    S[res] = outS;
-    attachRowMaskAttr(trans, outS);
-  }
-
-  void handleMaximum(arith::MaximumFOp maxf) {
-    Value res = maxf.getResult();
-    auto resType = mlir::dyn_cast<RankedTensorType>(res.getType());
-    if (!resType || resType.getRank() < 2) return;
-    int64_t rows = resType.getShape()[0];
-    if (rows <= 0) return;
-    Value lhs = maxf.getLhs();
-    Value rhs = maxf.getRhs();
-    if (auto constOp = rhs.getDefiningOp<arith::ConstantOp>()) {
-      if (auto denseAttr = mlir::dyn_cast<DenseFPElementsAttr>(constOp.getValue())) {
-        bool isZero = denseAttr.isSplat() && 
-                      denseAttr.getSplatValue<APFloat>().isZero();
-        if (isZero) {
-          MatrixSparsity inputS = getSparsity(lhs, rows);
-          S[res] = inputS;
-          attachRowMaskAttr(maxf, inputS);
-          return;
+  
+  void handleMaximum(arith::MaximumFOp maxOp) {
+    Value result = maxOp.getResult();
+    auto resultType = dyn_cast<RankedTensorType>(result.getType());
+    if (!resultType || resultType.getRank() < 2) return;
+    
+    int64_t rows = resultType.getShape()[0];
+    int64_t cols = resultType.getShape()[1];
+    
+    Value lhs = maxOp.getLhs();
+    Value rhs = maxOp.getRhs();
+    
+    bool lhsIsZero = false;
+    bool rhsIsZero = false;
+    
+    if (auto lhsDef = lhs.getDefiningOp()) {
+      if (auto constOp = dyn_cast<arith::ConstantOp>(lhsDef)) {
+        if (auto denseAttr = dyn_cast<DenseFPElementsAttr>(constOp.getValue())) {
+          if (denseAttr.isSplat() && denseAttr.getSplatValue<APFloat>().isZero()) {
+            lhsIsZero = true;
+          }
         }
       }
     }
-    MatrixSparsity a = getSparsity(lhs, rows);
-    MatrixSparsity b = getSparsity(rhs, rows);
-    MatrixSparsity out = unionRows(a, b);
-    S[res] = out;
-    attachRowMaskAttr(maxf, out);
+    
+    if (auto rhsDef = rhs.getDefiningOp()) {
+      if (auto constOp = dyn_cast<arith::ConstantOp>(rhsDef)) {
+        if (auto denseAttr = dyn_cast<DenseFPElementsAttr>(constOp.getValue())) {
+          if (denseAttr.isSplat() && denseAttr.getSplatValue<APFloat>().isZero()) {
+            rhsIsZero = true;
+          }
+        }
+      }
+    }
+    
+    MatrixSparsity outS;
+    
+    if (lhsIsZero) {
+      outS = getSparsity(rhs, rows, cols);
+    } else if (rhsIsZero) {
+      outS = getSparsity(lhs, rows, cols);
+    } else {
+      MatrixSparsity lhsS = getSparsity(lhs, rows, cols);
+      MatrixSparsity rhsS = getSparsity(rhs, rows, cols);
+      outS = union2D(lhsS, rhsS);
+    }
+    
+    S[result] = outS;
+    attach(maxOp, outS);
   }
-
-  void handleReduce(linalg::ReduceOp reduce) {
-    auto results = reduce.getResults();
+  
+  void handleTranspose(linalg::TransposeOp transOp) {
+    Value result = transOp->getResult(0);
+    auto resultType = dyn_cast<RankedTensorType>(result.getType());
+    if (!resultType || resultType.getRank() < 2) return;
+    
+    int64_t rows = resultType.getShape()[0];
+    int64_t cols = resultType.getShape()[1];
+    
+    Value input = transOp.getInput();
+    auto inputType = dyn_cast<RankedTensorType>(input.getType());
+    if (!inputType) return;
+    
+    int64_t inRows = inputType.getShape()[0];
+    int64_t inCols = inputType.getShape()[1];
+    
+    MatrixSparsity inS = getSparsity(input, inRows, inCols);
+    MatrixSparsity outS = transpose(inS);
+    
+    S[result] = outS;
+    attach(transOp, outS);
+  }
+  
+  void handleReduce(linalg::ReduceOp reduceOp) {
+    auto results = reduceOp.getResults();
     if (results.empty()) return;
-    Value res = results.front();
-    auto resType = mlir::dyn_cast<RankedTensorType>(res.getType());
-    if (!resType) return;
-    if (resType.getRank() < 1) return;
-    int64_t rows = resType.getShape()[0];
-    if (rows <= 0) return;
-    auto inputs = reduce.getInputs();
+    
+    Value result = results[0];
+    auto resultType = dyn_cast<RankedTensorType>(result.getType());
+    if (!resultType) return;
+    
+    auto inputs = reduceOp.getInputs();
     if (inputs.empty()) return;
-    Value input = inputs.front();
-    auto inType = mlir::dyn_cast<RankedTensorType>(input.getType());
-    if (!inType || inType.getRank() < 2) return;
-    int64_t inRows = inType.getShape()[0];
-    MatrixSparsity inputS = getSparsity(input, inRows);
-    MatrixSparsity outS = normalizeRows(inputS, rows);
-    S[res] = outS;
-    attachRowMaskAttr(reduce, outS);
+    
+    Value input = inputs[0];
+    auto inputType = dyn_cast<RankedTensorType>(input.getType());
+    if (!inputType || inputType.getRank() < 2) return;
+    
+    int64_t inRows = inputType.getShape()[0];
+    int64_t inCols = inputType.getShape()[1];
+    
+    MatrixSparsity inS = getSparsity(input, inRows, inCols);
+    
+    auto dims = reduceOp.getDimensions();
+    if (dims.empty()) return;
+    
+    int64_t dim = dims[0];
+    
+    MatrixSparsity outS;
+    if (dim == 0) {
+      outS.rowMask.assign(1, 1);
+      outS.colMask = inS.colMask;
+    } else if (dim == 1) {
+      outS.rowMask = inS.rowMask;
+      outS.colMask.assign(1, 1);
+    } else {
+      return;
+    }
+    
+    S[result] = outS;
+    attach(reduceOp, outS);
   }
-
-  void handleExpandShape(tensor::ExpandShapeOp expand) {
-    Value res = expand.getResult();
-    auto resType = mlir::dyn_cast<RankedTensorType>(res.getType());
-    if (!resType || resType.getRank() < 2) return;
-    int64_t rows = resType.getShape()[0];
-    if (rows <= 0) return;
-    Value input = expand.getSrc();
-    auto inType = mlir::dyn_cast<RankedTensorType>(input.getType());
-    if (!inType) return;
-    MatrixSparsity inputS = getSparsity(input, rows);
-    S[res] = inputS;
-    attachRowMaskAttr(expand, inputS);
+  
+  void handleBroadcast(tensor::ExpandShapeOp expandOp) {
+    Value result = expandOp.getResult();
+    auto resultType = dyn_cast<RankedTensorType>(result.getType());
+    if (!resultType || resultType.getRank() < 2) return;
+    
+    int64_t rows = resultType.getShape()[0];
+    int64_t cols = resultType.getShape()[1];
+    
+    Value input = expandOp.getSrc();
+    auto inputType = dyn_cast<RankedTensorType>(input.getType());
+    if (!inputType) return;
+    
+    int64_t inRows = inputType.getRank() >= 1 ? inputType.getShape()[0] : 1;
+    int64_t inCols = inputType.getRank() >= 2 ? inputType.getShape()[1] : 1;
+    
+    MatrixSparsity inS = getSparsity(input, inRows, inCols);
+    
+    MatrixSparsity outS;
+    outS.rowMask.assign(rows, inS.rowMask.empty() ? 1 : inS.rowMask[0]);
+    outS.colMask.assign(cols, inS.colMask.empty() ? 1 : inS.colMask[0]);
+    
+    S[result] = outS;
+    attach(expandOp, outS);
   }
 };
 
-}
-
-std::unique_ptr<Pass> createSparsityPropagationPass() {
-  return std::make_unique<SparsityPropagationPass>();
-}
-
-static PassRegistration<SparsityPropagationPass> regSparseFlowSPA;
+} // namespace
 
 void registerSparsityPropagationPass() {
   PassRegistration<SparsityPropagationPass>();

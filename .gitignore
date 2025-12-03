@@ -15,3 +15,7 @@ compiler/build/
 runtime/build/
 hardware_config.json
 sparseflow-github/
+
+# SPA scratch / backup files (do not commit)
+compiler/passes/spa/*.v5
+compiler/passes/spa/*.backup
