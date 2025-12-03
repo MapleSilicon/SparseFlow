@@ -72,6 +72,7 @@ private:
     if (auto it = S.find(v); it != S.end())
       return normalizeRows(it->second, expectedRows);
     if (Operation *defOp = v.getDefiningOp()) {
+      // Check for explicit rowmask first
       if (auto arr = defOp->getAttrOfType<ArrayAttr>("sparseflow.spa_rowmask")) {
         MatrixSparsity m;
         m.rowMask.reserve(arr.size());
@@ -84,6 +85,21 @@ private:
             m.rowMask.push_back(1);
         }
         return normalizeRows(m, expectedRows);
+      }
+      
+      // Check for N:M sparsity attributes (from AnnotateNm pass)
+      if (auto nAttr = defOp->getAttrOfType<IntegerAttr>("sparseflow.n")) {
+        if (auto mAttr = defOp->getAttrOfType<IntegerAttr>("sparseflow.m")) {
+          int n = nAttr.getInt();
+          int m = mAttr.getInt();
+          // N:M means N out of M values are non-zero
+          // For now, conservatively assume all rows could be non-zero
+          // TODO: For finer analysis, we'd need to look at actual weight patterns
+          MatrixSparsity sparse = makeDenseRows(static_cast<int>(expectedRows));
+          // Store a comment that this came from N:M
+          // (In future, we could use N:M to estimate row-level sparsity)
+          return sparse;
+        }
       }
     }
     return makeDenseRows(static_cast<int>(expectedRows));
