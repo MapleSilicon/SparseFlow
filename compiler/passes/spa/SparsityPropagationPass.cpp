@@ -92,12 +92,21 @@ private:
         if (auto mAttr = defOp->getAttrOfType<IntegerAttr>("sparseflow.m")) {
           int n = nAttr.getInt();
           int m = mAttr.getInt();
+          
           // N:M means N out of M values are non-zero
-          // For now, conservatively assume all rows could be non-zero
-          // TODO: For finer analysis, we'd need to look at actual weight patterns
-          MatrixSparsity sparse = makeDenseRows(static_cast<int>(expectedRows));
-          // Store a comment that this came from N:M
-          // (In future, we could use N:M to estimate row-level sparsity)
+          // Estimate row-level sparsity using N:M pattern
+          MatrixSparsity sparse;
+          sparse.rowMask.reserve(static_cast<size_t>(expectedRows));
+          
+          // Create a repeating pattern based on N:M ratio
+          // If n/m = 0.5 (2:4), alternate rows: true, false, true, false
+          // If n/m = 0.25 (1:4), pattern: true, false, false, false
+          for (int64_t i = 0; i < expectedRows; ++i) {
+            // Row is "maybe non-zero" if (i % m) < n
+            bool rowActive = ((i % m) < n);
+            sparse.rowMask.push_back(rowActive ? 1 : 0);
+          }
+          
           return sparse;
         }
       }
@@ -120,11 +129,31 @@ private:
     if (!resultType || resultType.getRank() < 2) return;
     int64_t rows = resultType.getShape()[0];
     if (rows <= 0) return;
+    
+    // Check if this matmul has N:M sparsity annotation
+    MatrixSparsity outS;
+    if (auto nAttr = mm->getAttrOfType<IntegerAttr>("sparseflow.n")) {
+      if (auto mAttr = mm->getAttrOfType<IntegerAttr>("sparseflow.m")) {
+        int n = nAttr.getInt();
+        int m = mAttr.getInt();
+        // Create pattern from N:M
+        outS.rowMask.reserve(static_cast<size_t>(rows));
+        for (int64_t i = 0; i < rows; ++i) {
+          bool rowActive = ((i % m) < n);
+          outS.rowMask.push_back(rowActive ? 1 : 0);
+        }
+        S[result] = outS;
+        attachRowMaskAttr(mm, outS);
+        return;
+      }
+    }
+    
+    // Otherwise, use input sparsity
     Value lhs;
     auto inputs = mm.getInputs();
     if (!inputs.empty()) lhs = inputs.front();
     MatrixSparsity lhsS = lhs ? getSparsity(lhs, rows) : makeDenseRows(static_cast<int>(rows));
-    MatrixSparsity outS = normalizeRows(lhsS, rows);
+    outS = normalizeRows(lhsS, rows);
     S[result] = outS;
     attachRowMaskAttr(mm, outS);
   }
