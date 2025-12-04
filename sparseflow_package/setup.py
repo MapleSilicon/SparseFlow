@@ -1,5 +1,4 @@
 from setuptools import setup, find_packages
-import os
 
 setup(
     name="sparseflow",
@@ -10,27 +9,20 @@ setup(
         "tabulate>=0.9.0",
     ],
     extras_require={
-        'demo': ['torch>=2.0.0', 'onnx>=1.14.0'],
+        "demo": ["torch>=2.0.0", "onnx>=1.14.0"],
     },
     entry_points={
-        'console_scripts': [
-            'sparseflow-demo=sparseflow.cli:demo_main',
-            'sparseflow-analyze=sparseflow.cli:analyze_main',
-            'sparseflow-benchmark=sparseflow.cli:benchmark_main',
+        "console_scripts": [
+            "sparseflow-demo=sparseflow.cli:demo_main",
+            "sparseflow-analyze=sparseflow.cli:analyze_main",
+            "sparseflow-benchmark=sparseflow.cli:benchmark_main",
         ],
     },
     author="MapleSilicon",
-    description="SparseFlow: Static Sparsity Analysis + Runtime for 4× MLIR Matmul Speedup",
-    long_description=open("../README.md").read(),
-    long_description_content_type="text/markdown",
+    author_email="",
     url="https://github.com/MapleSilicon/SparseFlow",
-    classifiers=[
-        "Development Status :: 4 - Beta",
-        "Intended Audience :: Developers",
-        "Topic :: Software Development :: Compilers",
-        "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: C++",
-    ],
-    python_requires=">=3.8",
+    description="SparseFlow: Static sparsity analysis + runtime for 3–5× matmul speedup",
+    long_description="Developer preview: hooks into SparseFlow SPA + C++ runtime.",
+    long_description_content_type="text/plain",
+    python_requires=">=3.9",
 )

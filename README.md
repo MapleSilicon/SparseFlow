@@ -312,3 +312,12 @@ On CPU with 50% row + 50% col sparsity (75% FLOP reduction):
 Performance varies with cache effects and OpenMP overhead. Production deployments
 should target workloads ≥512×512 for consistent speedup.
 
+
+## Python CLI (developer preview)
+
+From the repo root:
+
+```bash
+cd sparseflow_package
+pip install -e .
+
