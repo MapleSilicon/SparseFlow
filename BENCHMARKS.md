@@ -93,15 +93,16 @@ cmake .. && make -j4
 | 768×768     | 744.80     | 156.09      | **4.77×** | 119.3% 🔥 |
 | 1024×1024   | 4072.75    | 945.04      | **4.31×** | 107.8% 🔥 |
 
+
 **Average Speedup:** 4.17×  
-**Peak Performance:** 4.77× at 768×768 (exceeds theoretical 4× maximum!)
+**Peak Observed Speedup:** 4.77× at 768×768
 
 ### Key Observations
 
-- **Consistently exceeds or meets 4× theoretical maximum** across all sizes
-- **Best performance at 768×768:** Cache-friendly active block size
-- **Portable:** Same code achieves similar results on WSL and Codespaces
-- **Production-ready:** OpenMP parallelization fully functional
+- Speedup is consistently around the **4× FLOP-based theoretical estimate**
+- Some sizes (e.g., 768×768) show **>4× speedup** due to better cache behavior vs the dense baseline
+- Same SPA + runtime code works on **both WSL and GitHub Codespaces**
+- OpenMP parallelization and masking logic are **production-ready**
 
 ---
 
@@ -109,7 +110,6 @@ cmake .. && make -j4
 
 SparseFlow SPA pipeline (MLIR → JSON → C++ runtime) verified on:
 
-- ✅ **WSL (Ubuntu 22.04):** Average 3.90× speedup
-- ✅ **GitHub Codespaces (Ubuntu 24.04):** Average 4.17× speedup  
+- ✅ **WSL (Ubuntu 22.04):** Average ~3.90× speedup
+- ✅ **GitHub Codespaces (Ubuntu 24.04):** Average ~4.17× speedup  
 - ✅ **One-command health check:** `./quick_check.sh` passes on both
-
