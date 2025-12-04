@@ -48,54 +48,6 @@ SparseFlow is a production-ready compiler that optimizes AI inference through st
 
 Static analysis that tracks which matrix rows/columns are provably zero:
 ```mlir
-
----
-
-## 🚀 Run SparseFlow in GitHub Codespaces
-
-SparseFlow is verified to build and run end-to-end in GitHub Codespaces with LLVM/MLIR 19.
-
-### Quick Start (3 commands)
-```bash
-# 1) Build compiler passes (SPA analysis + JSON export)
-cd /workspaces/SparseFlow/compiler/build
-cmake -DCMAKE_PREFIX_PATH=/usr/lib/llvm-19 .. && make -j4
-
-# 2) Build C++ runtime (OpenMP-accelerated sparse kernels)
-cd /workspaces/SparseFlow/runtime/build
-cmake .. && make -j4
-
-# 3) Run complete demo
-cd /workspaces/SparseFlow
-./run_spa_v06_demo.sh && cd runtime/build && ./benchmark_sparse
-```
-
-### What You'll See
-
-**SPA Analysis Demo:**
-- Static sparsity detection: 75% (50% rows + 50% cols)
-- JSON export: `spa_sparsity.json` with runtime-ready metadata
-- MLIR output with `spa_rowmask` and `spa_colmask` attributes
-
-**C++ Runtime Benchmark:**
-```
-Matrix Size | Dense Time | Sparse Time | Speedup
-──────────────────────────────────────────────────
-256×256     | 19.1 ms    | 5.7 ms      | 3.4×
-512×512     | 244 ms     | 44 ms       | 5.5× 🔥
-768×768     | 506 ms     | 149 ms      | 3.4×
-1024×1024   | 4036 ms    | 1064 ms     | 3.8×
-
-Average: ~4× CPU speedup with OpenMP parallelization
-```
-
-### Dependencies (Pre-installed in Codespaces)
-```bash
-# If needed, install LLVM/MLIR 19
-sudo apt update && sudo apt install -y \
-  llvm-19-dev mlir-19-tools libmlir-19-dev libomp-dev
-```
-
 // Before SPA
 linalg.matmul ins(%A, %B : tensor<4x4xf32>)
 
