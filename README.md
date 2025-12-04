@@ -321,3 +321,13 @@ From the repo root:
 cd sparseflow_package
 pip install -e .
 
+
+
+## MLIR Driver (sparseflow-opt.sh)
+
+SparseFlow provides a small convenience wrapper around \`mlir-opt\` to run SPA:
+
+```bash
+./sparseflow-opt.sh tests/test_spa_v6_full_2d.mlir > /tmp/out.mlir
+cat spa_sparsity.json
+
