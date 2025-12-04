@@ -1,33 +1,24 @@
 # SparseFlow
 
-**MLIR-based compiler for N:M structured sparsity acceleration**
+**MLIR-based compiler for structured sparsity optimization**
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)]()
 [![MLIR](https://img.shields.io/badge/MLIR-19-blue)]()
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)]()
 
-## 🚀 New: Sparsity Propagation Analysis (SPA) v0.5
-
-SparseFlow now includes **SPA** - a static analysis pass that tracks and propagates sparsity through computation graphs:
-```bash
-# Try it now - one command!
-./scripts/run_spa_demo.sh
-```
-
-**What it does:**
-- 🎯 Converts N:M sparsity to row-level masks
-- 📊 Propagates sparsity through arithmetic operations
-- ⚡ Enables compile-time optimizations
-- 🔗 Integrates with existing MLIR passes
-
-**Documentation:** [docs/spa/](docs/spa/) | **Status:** [SPA_STATUS.md](SPA_STATUS.md)
-
 ---
 
-## Quick Start
-```bash
-git clone https://github.com/MapleSilicon/SparseFlow.git
-cd SparseFlow
+## 🎯 What is SparseFlow?
+
+SparseFlow is an **MLIR compiler infrastructure** that detects and exploits structured sparsity in tensor operations. Our **SPA (Sparsity Propagation Analysis)** pass performs static analysis at compile-time to identify zero computation and generate optimized runtimes.
+
+### Key Achievement
+
+✅ **~4× CPU speedup** on structured sparse matmuls (proven and reproducible)  
+✅ **Static analysis** at compile-time (no runtime overhead)  
+✅ **2D sparsity tracking** (rows + columns)  
+✅ **Production-ready** OpenMP runtime  
+✅ **Cross-platform** verified (WSL + GitHub Codespaces)  
 
 ---
 
@@ -39,270 +30,254 @@ cd SparseFlow
 
 - **MLIR SPA Pass:** 2D sparsity analysis for `linalg.matmul` (row + column masks)
 - **JSON Export:** `spa_sparsity.json` with runtime-ready metadata
-- **Python Demos:** Reference implementations (`spa_runtime.py`, `masked_matmul_loops.py`)
+- **Python Demos:** Reference implementations for validation
 - **C++ OpenMP Runtime:** Production kernel achieving ~4× CPU speedup
 - **Cross-Platform:** Verified on WSL (Ubuntu 22.04) and GitHub Codespaces (Ubuntu 24.04)
 - **Health Check:** One-command verification (`./quick_check.sh`)
-- **Documentation:** Complete benchmarks, setup guides, and examples
+- **Documentation:** Technical overview, pitch deck, benchmarks
 
 ### ⚠️ What's Missing (Future Work)
 
 - **GPU Kernels:** No CUDA/ROCm support yet (CPU-only)
-- **MLIR Integration:** No automatic lowering to runtime calls in pipeline
-- **Framework Integration:** No PyTorch / ONNX / TensorRT support yet
+- **MLIR Integration:** No automatic lowering to runtime calls
+- **Framework Integration:** No PyTorch / ONNX / TensorRT support
 - **Dynamic Sparsity:** Only static analysis (no runtime profiling)
-- **Production Tooling:** No packaging, deployment, or monitoring
 
-### 🎯 What You Can Claim (No Bullshit)
+### 🎯 Honest Claim
 
 > "SparseFlow SPA v0.6 provides static 2D sparsity analysis for MLIR that detects ~75% removable FLOPs on structured patterns, exports JSON metadata, and drives an OpenMP runtime achieving ~4× CPU speedup on benchmarks from 128×128 to 1024×1024. Verified on WSL and GitHub Codespaces."
 
 ---
 
-./build_all.sh
+## 🚀 Quick Start
+
+### Try in GitHub Codespaces (3 minutes)
+```bash
+# Open this repo in Codespaces, then:
+
+# 1) Health check (builds everything + runs tests)
+./quick_check.sh
+
+# 2) See the speedup
+cd runtime/build && ./benchmark_sparse
 ```
 
-**Result:** Proven 2.0x speedup with 2:4 sparsity (50% compute reduction)
+**Expected Result:** ~4× speedup on CPU with ~75% sparsity detection
 
-## What is SparseFlow?
-
-SparseFlow is a production-ready compiler that optimizes AI inference through structured sparsity:
-
-- **Input:** Standard MLIR from PyTorch/ONNX/TensorFlow
-- **Transform:** Apply 2:4 structured sparsity patterns + static analysis
-- **Output:** Hardware-ready JSON metadata + optimized IR
-- **Result:** 2x theoretical speedup, 50% MACs eliminated
-
-## Key Features
-
-### 1. Sparsity Propagation Analysis (SPA)
-
-Static analysis that tracks which matrix rows/columns are provably zero:
-```mlir
-
----
-
-## 🚀 Run SparseFlow in GitHub Codespaces
-
-SparseFlow is verified to build and run end-to-end in GitHub Codespaces with LLVM/MLIR 19.
-
-### Quick Start (3 commands)
+### Local Setup (WSL/Linux)
 ```bash
-# 1) Build compiler passes (SPA analysis + JSON export)
-cd /workspaces/SparseFlow/compiler/build
+# Prerequisites
+sudo apt install -y llvm-19-dev mlir-19-tools libmlir-19-dev libomp-dev
+
+# Clone and build
+git clone https://github.com/MapleSilicon/SparseFlow.git
+cd SparseFlow
+
+# Build compiler passes
+cd compiler/build
 cmake -DCMAKE_PREFIX_PATH=/usr/lib/llvm-19 .. && make -j4
 
-# 2) Build C++ runtime (OpenMP-accelerated sparse kernels)
-cd /workspaces/SparseFlow/runtime/build
+# Build runtime
+cd ../../runtime/build
 cmake .. && make -j4
 
-# 3) Run complete demo
-cd /workspaces/SparseFlow
-./run_spa_v06_demo.sh && cd runtime/build && ./benchmark_sparse
+# Run demo
+cd ../../
+./run_spa_v06_demo.sh
 ```
-
-### What You'll See
-
-**SPA Analysis Demo:**
-- Static sparsity detection: 75% (50% rows + 50% cols)
-- JSON export: `spa_sparsity.json` with runtime-ready metadata
-- MLIR output with `spa_rowmask` and `spa_colmask` attributes
-
-**C++ Runtime Benchmark:**
-```
-Matrix Size | Dense Time | Sparse Time | Speedup
-──────────────────────────────────────────────────
-256×256     | 19.1 ms    | 5.7 ms      | 3.4×
-512×512     | 244 ms     | 44 ms       | 5.5× 🔥
-768×768     | 506 ms     | 149 ms      | 3.4×
-1024×1024   | 4036 ms    | 1064 ms     | 3.8×
-
-Average: ~4× CPU speedup with OpenMP parallelization
-```
-
-### Dependencies (Pre-installed in Codespaces)
-```bash
-# If needed, install LLVM/MLIR 19
-sudo apt update && sudo apt install -y \
-  llvm-19-dev mlir-19-tools libmlir-19-dev libomp-dev
-```
-
-// Before SPA
-linalg.matmul ins(%A, %B : tensor<4x4xf32>)
-
-// After SPA (with 2:4 sparsity)
-linalg.matmul {sparseflow.spa_rowmask = [true, true, false, false]}
-  ins(%A, %B : tensor<4x4xf32>)
-```
-
-Now the compiler knows rows 2 and 3 are zero! See [SPA Documentation](docs/spa/).
-
-### 2. N:M Sparsity Patterns
-
-Proven 2:4 structured sparsity with consistent performance:
-
-| Matrix Size | Total MACs | Executed MACs | Speedup | Savings |
-|-------------|------------|---------------|---------|---------|
-| 32×32       | 32,768     | 16,384        | 2.0x    | 50%     |
-| 128×128     | 2,097,152  | 1,048,576     | 2.0x    | 50%     |
-| 512×512     | 134,217,728| 67,108,864    | 2.0x    | 50%     |
-
-See [PERFORMANCE_RESULTS.md](PERFORMANCE_RESULTS.md) for detailed benchmarks.
-
-### 3. End-to-End Pipeline
-```
-MLIR Input → Annotate N:M → SPA Analysis → Optimize → JSON Export → Runtime
-```
-
-## Architecture
-```
-┌────────────────────────────────────────┐
-│         SparseFlow Compiler            │
-│                                        │
-│  ┌──────────────┐  ┌──────────────┐  │
-│  │ AnnotateNm   │─▶│  SPA Pass    │  │
-│  │ (N:M inject) │  │  (Analysis)  │  │
-│  └──────────────┘  └──────┬───────┘  │
-│                            │          │
-│  ┌──────────────┐  ┌──────▼───────┐  │
-│  │ FlopCounter  │  │ Optimization │  │
-│  │              │  │ Passes       │  │
-│  └──────────────┘  └──────┬───────┘  │
-│                            │          │
-│                    ┌───────▼───────┐  │
-│                    │ JSON Export   │  │
-│                    └───────────────┘  │
-└────────────────────────────────────────┘
-```
-
-### Compiler Passes
-
-1. **`sparseflow-annotate-nm`** - Inject N:M sparsity patterns
-2. **`sparseflow-spa`** - Analyze and propagate sparsity ⭐ NEW
-3. **`sparseflow-flop-counter`** - Compute MAC reduction metrics
-4. **`sparseflow-export-metadata`** - Generate hardware config JSON
-
-## Repository Structure
-```
-SparseFlow/
-├── compiler/
-│   ├── passes/
-│   │   ├── AnnotateNmPass.cpp
-│   │   ├── FlopCounterPass.cpp
-│   │   ├── ExportMetadataPass.cpp
-│   │   └── spa/                    ⭐ NEW: SPA implementation
-│   │       ├── SPADomain.h
-│   │       ├── SPADomain.cpp
-│   │       └── SparsityPropagationPass.cpp
-│   └── test/
-├── docs/                            ⭐ NEW: Complete documentation
-│   └── spa/
-│       ├── README.md
-│       ├── architecture.md
-│       ├── user_guide.md
-│       ├── api_reference.md
-│       └── examples/
-├── runtime/
-├── benchmarks/
-├── scripts/
-│   └── run_spa_demo.sh             ⭐ NEW: One-command demo
-├── tests/
-│   └── spa_nm_demo.mlir            ⭐ NEW: SPA test cases
-├── build_all.sh
-├── run_benchmarks.sh
-├── QUICK_DEMO.md
-├── SPA_STATUS.md                   ⭐ NEW: Development status
-└── README.md
-```
-
-## Getting Started
-
-### Prerequisites
-
-- LLVM/MLIR 19
-- CMake 3.20+
-- C++17 compiler
-- Python 3.8+ (for benchmarks)
-
-### Build
-```bash
-cd SparseFlow/compiler
-mkdir -p build && cd build
-cmake -DCMAKE_PREFIX_PATH=/usr/lib/llvm-19 ..
-make -j4
-```
-
-### Try SPA
-```bash
-# Run the demo
-./scripts/run_spa_demo.sh
-
-# Or manually
-cd compiler/build
-mlir-opt-19 --load-pass-plugin=./passes/SparseFlowPasses.so \
-  --pass-pipeline='builtin.module(func.func(sparseflow-annotate-nm),sparseflow-spa)' \
-  ../../tests/spa_nm_demo.mlir
-```
-
-### Run Benchmarks
-```bash
-# Full benchmark suite
-./run_benchmarks.sh
-
-# Generate performance graphs
-python3 generate_graphs.py benchmarks/results/TIMESTAMP/benchmark_results.csv
-```
-
-## Documentation
-
-- **[Quick Demo](QUICK_DEMO.md)** - Get started in 5 minutes
-- **[SPA Documentation](docs/spa/)** - Complete guide to Sparsity Propagation Analysis
-- **[SPA Status](SPA_STATUS.md)** - Development roadmap and features
-- **[Performance Results](PERFORMANCE_RESULTS.md)** - Detailed benchmarks
-- **[Benchmarks](BENCHMARKS.md)** - Methodology and analysis
-
-## Technical Details
-
-**Sparsity Pattern:** 2:4 structured (2 non-zero values per 4 elements)  
-**Analysis:** Static row-level sparsity propagation (v0.5)  
-**Target Hardware:** FPGA, ASIC, specialized accelerators  
-**Compiler Infrastructure:** MLIR 19, LLVM toolchain  
-**Metadata Format:** JSON (hardware-agnostic)
-
-## Status
-
-### Compiler (Production Ready)
-- ✅ N:M annotation pass
-- ✅ Sparsity propagation analysis (SPA v0.5)
-- ✅ FLOP counter
-- ✅ Metadata export
-- ✅ Pass pipeline validated
-
-### Documentation
-- ✅ User guide
-- ✅ Architecture documentation
-- ✅ API reference
-- ✅ Examples and tutorials
-
-### Future Work
-- 🔨 SPA v0.6: 2D sparsity (rows + columns)
-- 🔨 Runtime integration
-- 🔨 FPGA backend
-- 🔨 PyTorch integration (Q1 2026)
-
-## Contributing
-
-Contributions welcome! See [docs/](docs/) for technical details.
-
-## Contact
-
-**Gourav Kumar** - Founder, MapleSilicon  
-GitHub: [@MapleSilicon](https://github.com/MapleSilicon)
-
-## License
-
-Apache 2.0
 
 ---
 
-**Latest:** SPA v0.5 with N:M integration and comprehensive documentation (December 2024)
+## 📈 Benchmark Results
+
+### CPU Performance (OpenMP, GitHub Codespaces)
+
+| Matrix Size | Dense Time | Sparse Time | Speedup |
+|-------------|------------|-------------|---------|
+| 256×256     | 22.3 ms    | 5.2 ms      | **4.3×** |
+| 512×512     | 336 ms     | 101 ms      | **3.3×** |
+| 768×768     | 745 ms     | 156 ms      | **4.8×** |
+| 1024×1024   | 4073 ms    | 945 ms      | **4.3×** |
+
+**Average: 4.2× speedup** (consistent with 75% FLOP reduction)
+
+**Pattern:** 50% row + 50% column sparsity = 75% total sparsity
+
+See [BENCHMARKS.md](BENCHMARKS.md) for detailed methodology and cross-environment results.
+
+---
+
+## 📚 Documentation
+
+- **[3-Minute Demo](QUICK_DEMO.md)** - Prove it works in 3 commands
+- **[Technical Overview](docs/SPA_OVERVIEW.md)** - Architecture and examples
+- **[Pitch Deck](docs/pitch/SLIDES.md)** - Investor presentation (7 slides)
+- **[Benchmarks](BENCHMARKS.md)** - Detailed performance analysis
+- **[Health Check](quick_check.sh)** - One-command verification
+
+---
+
+## 🔬 How It Works
+
+### Pipeline Architecture
+```
+┌─────────────┐
+│ MLIR Source │  Standard linalg.matmul
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│  SPA Pass   │  Detects: rowmask=[T,F,T,F]
+│   (v0.6)    │          colmask=[T,T,F,F]
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│ JSON Export │  spa_sparsity.json
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│ C++ Runtime │  OpenMP masked matmul
+│   (OpenMP)  │
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│ ~4× Speedup │  🔥
+└─────────────┘
+```
+
+### Example
+
+**Input MLIR:**
+```mlir
+linalg.matmul ins(%A, %B : tensor<512x512xf32>)
+```
+
+**After SPA Analysis:**
+```mlir
+linalg.matmul {
+  sparseflow.spa_rowmask = [true, false, true, false, ...],
+  sparseflow.spa_colmask = [true, true, false, false, ...]
+} ins(%A, %B : tensor<512x512xf32>)
+```
+
+**JSON Export:**
+```json
+{
+  "name": "linalg.matmul",
+  "row_sparsity_pct": 50,
+  "col_sparsity_pct": 50,
+  "total_rows": 512,
+  "total_cols": 512
+}
+```
+
+**Runtime:** Uses masks to skip 75% of computation → **3.3× faster**
+
+---
+
+## 🛠️ Repository Structure
+```
+SparseFlow/
+├── compiler/passes/        # MLIR analysis passes
+│   ├── spa/               # SPA v0.6 implementation
+│   ├── SPAExportPass.cpp  # JSON export
+│   └── ...
+├── runtime/               # C++ OpenMP runtime
+│   ├── masked_matmul.cpp  # Optimized sparse kernel
+│   └── benchmark_sparse.cpp
+├── docs/
+│   ├── SPA_OVERVIEW.md    # Technical deep-dive
+│   └── pitch/SLIDES.md    # Investor deck
+├── tests/                 # Test cases
+├── quick_check.sh         # Health check script
+├── run_spa_v06_demo.sh    # Complete demo
+└── BENCHMARKS.md          # Performance results
+```
+
+---
+
+## 🎓 Technical Details
+
+### What SPA Detects
+
+- **2D Sparsity:** Tracks zero rows AND columns (not just 1D)
+- **Static Analysis:** Compile-time detection (no runtime overhead)
+- **Structured Patterns:** N:M, block, and custom sparsity
+- **Propagation:** Tracks sparsity through arithmetic operations
+
+### Supported Operations (SPA v0.6)
+
+- ✅ `linalg.matmul` (fully supported)
+- ✅ `arith.addf`, `arith.subf` (union semantics)
+- ✅ `arith.mulf`, `arith.divf` (intersection semantics)
+- ✅ `arith.maximumf` (ReLU detection)
+- ✅ `linalg.transpose` (swaps rows ↔ cols)
+- ✅ `linalg.reduce` (preserves non-reduced dimension)
+- ✅ `tensor.expand_shape` (broadcasts pattern)
+
+### Runtime Implementation
+
+- **Language:** C++ with OpenMP
+- **Parallelization:** `#pragma omp parallel for`
+- **Mask Type:** `std::vector<uint8_t>` (SIMD-friendly)
+- **Algorithm:** Extract active block → compute → scatter back
+
+---
+
+## 🚧 Roadmap
+
+### ✅ Phase 1: Static Analysis (Complete)
+- 2D sparsity tracking
+- JSON export
+- CPU runtime
+- Cross-platform verification
+
+### 🔨 Phase 2: GPU Acceleration (Next)
+- CUDA masked matmul kernel
+- 10-50× speedup potential
+- cuSPARSE comparison
+
+### 📅 Phase 3: Framework Integration (Future)
+- PyTorch plugin
+- ONNX Runtime backend
+- TensorRT integration
+
+### 🔬 Phase 4: Advanced Features (Research)
+- Dynamic sparsity profiling
+- Automatic pattern detection
+- Multi-dimensional tensors
+
+---
+
+## 🤝 Contributing
+
+Contributions welcome! Areas of interest:
+- GPU kernel development (CUDA/ROCm)
+- MLIR dialect integration
+- Framework plugins (PyTorch/ONNX)
+- Benchmark suite expansion
+
+---
+
+## 📫 Contact
+
+**Gourav Kumar** - Founder, MapleSilicon  
+**GitHub:** [@MapleSilicon](https://github.com/MapleSilicon)  
+**Project:** https://github.com/MapleSilicon/SparseFlow
+
+---
+
+## 📄 License
+
+Apache 2.0 - See [LICENSE](LICENSE) for details
+
+---
+
+## 🎉 Acknowledgments
+
+Built with LLVM/MLIR 19. Tested on WSL and GitHub Codespaces.
+
+**Star this repo** ⭐ if you find it useful!
