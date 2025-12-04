@@ -28,6 +28,37 @@ SparseFlow now includes **SPA** - a static analysis pass that tracks and propaga
 ```bash
 git clone https://github.com/MapleSilicon/SparseFlow.git
 cd SparseFlow
+
+---
+
+## 📊 Project Status — SPA v0.6
+
+**Last Updated:** December 2024
+
+### ✅ What Works (Production-Ready)
+
+- **MLIR SPA Pass:** 2D sparsity analysis for `linalg.matmul` (row + column masks)
+- **JSON Export:** `spa_sparsity.json` with runtime-ready metadata
+- **Python Demos:** Reference implementations (`spa_runtime.py`, `masked_matmul_loops.py`)
+- **C++ OpenMP Runtime:** Production kernel achieving ~4× CPU speedup
+- **Cross-Platform:** Verified on WSL (Ubuntu 22.04) and GitHub Codespaces (Ubuntu 24.04)
+- **Health Check:** One-command verification (`./quick_check.sh`)
+- **Documentation:** Complete benchmarks, setup guides, and examples
+
+### ⚠️ What's Missing (Future Work)
+
+- **GPU Kernels:** No CUDA/ROCm support yet (CPU-only)
+- **MLIR Integration:** No automatic lowering to runtime calls in pipeline
+- **Framework Integration:** No PyTorch / ONNX / TensorRT support yet
+- **Dynamic Sparsity:** Only static analysis (no runtime profiling)
+- **Production Tooling:** No packaging, deployment, or monitoring
+
+### 🎯 What You Can Claim (No Bullshit)
+
+> "SparseFlow SPA v0.6 provides static 2D sparsity analysis for MLIR that detects ~75% removable FLOPs on structured patterns, exports JSON metadata, and drives an OpenMP runtime achieving ~4× CPU speedup on benchmarks from 128×128 to 1024×1024. Verified on WSL and GitHub Codespaces."
+
+---
+
 ./build_all.sh
 ```
 
