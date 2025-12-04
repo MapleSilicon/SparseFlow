@@ -15,3 +15,6 @@ add_subdirectory(passes)
 
 # Add sparseflow-opt tool
 add_subdirectory(tools/sparseflow-opt)
+
+# Add sparseflow-opt tool
+add_subdirectory(tools/sparseflow-opt)

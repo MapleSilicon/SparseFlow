@@ -1,0 +1,58 @@
+{
+  "week": 3,
+  "status": "complete",
+  "completion_date": "2025-12-04",
+  "tasks": [
+    {
+      "id": 1,
+      "name": "SPA pass cleanup and renaming",
+      "status": "complete",
+      "files": [
+        "compiler/passes/sparseflow/",
+        "compiler/cleanup_spa_passes.sh"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "MLIR dialect stubs",
+      "status": "complete",
+      "files": [
+        "compiler/include/SparseFlow/SparseFlowDialect.td",
+        "compiler/passes/SparseFlowDialect.cpp",
+        "compiler/passes/SparseFlowDialect.h"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "sparseflow-opt driver",
+      "status": "complete",
+      "files": [
+        "compiler/tools/sparseflow-opt/sparseflow-opt.cpp",
+        "compiler/tools/sparseflow-opt/CMakeLists.txt"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Hardware contract JSON spec",
+      "status": "complete",
+      "files": [
+        "docs/HARDWARE_CONTRACT.md"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "PyTorch → MLIR skeleton",
+      "status": "complete",
+      "files": [
+        "pytorch_model.mlir",
+        "sparseflow-opt.sh"
+      ]
+    }
+  ],
+  "git": {
+    "commit": "1365b7c",
+    "tag": "week3-complete",
+    "url": "https://github.com/MapleSilicon/SparseFlow"
+  },
+  "next_week_options": ["A", "B", "C"]
+}
