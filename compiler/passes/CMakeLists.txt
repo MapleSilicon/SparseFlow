@@ -13,8 +13,8 @@ add_library(SparseFlowPasses MODULE
   ExportMetadataPass.cpp
   FlopCounterPass.cpp
   SPAExportPass.cpp
-  spa/SPADomain.cpp
-  spa/SparsityPropagationPass.cpp
+  sparseflow/SPADomain.cpp
+  sparseflow/SparsityPropagationPass.cpp
 )
 
 target_compile_features(SparseFlowPasses PRIVATE cxx_std_17)
@@ -32,4 +32,8 @@ set_target_properties(SparseFlowPasses PROPERTIES
   SUFFIX ".so"
   OUTPUT_NAME "SparseFlowPasses"
   LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/passes"
+)
+
+set_target_properties(SparseFlowPasses PROPERTIES
+  PREFIX ""
 )
