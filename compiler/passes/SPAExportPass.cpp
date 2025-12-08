@@ -92,6 +92,10 @@ struct SPAExportPass : public PassWrapper<SPAExportPass, OperationPass<ModuleOp>
 
 } // namespace
 
+namespace {
+inline PassRegistration<SPAExportPass> registerPass;
+}
+
 void registerSPAExportPass() {
   PassRegistration<SPAExportPass>();
 }

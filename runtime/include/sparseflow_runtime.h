@@ -1,47 +1,32 @@
-//===- sparseflow_runtime.h - SparseFlow Runtime API ---------------------===//
 #ifndef SPARSEFLOW_RUNTIME_H
 #define SPARSEFLOW_RUNTIME_H
 
-#include <stdint.h>
-#include <stdbool.h>
+#include <cstdint>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct SparseMatrixHandle* SparseMatrix;
-
-SparseMatrix sparseflow_create_matrix(
-    const bool* rowmask, int rows,
-    const bool* colmask, int cols);
-
-void sparseflow_destroy_matrix(SparseMatrix mat);
-
-void sparse_matmul_2_4_impl(
-    float* C, const float* A, const float* B,
-    int M, int K, int N,
-    const bool* rowmask_A, const bool* colmask_B);
-
+/// Sparse 2:4 MatMul Kernel (CPU / OpenMP)
+/// 
+/// out[M×N] = lhs[M×K] × rhs[K×N]
+/// rowmask[M] — 1 = row active, 0 = row skipped
+/// colmask[N] — 1 = col active, 0 = col skipped
+///
+/// ABI is fully explicit for JIT stability.
 void sparse_matmul_2_4(
-    float* out, const float* lhs, const float* rhs,
-    int64_t* out_shape, int64_t* lhs_shape, int64_t* rhs_shape);
-
-typedef struct {
-    double dense_time_ms;
-    double sparse_time_ms;
-    double speedup;
-    int64_t dense_flops;
-    int64_t sparse_flops;
-} BenchmarkResult;
-
-BenchmarkResult sparseflow_benchmark_matmul(
-    const float* A, const float* B,
-    int M, int K, int N,
-    const bool* rowmask_A, const bool* colmask_B,
-    int num_iterations);
+    float* out,
+    const float* lhs,
+    const float* rhs,
+    int64_t M,
+    int64_t K,
+    int64_t N,
+    const int64_t* rowmask,
+    const int64_t* colmask
+);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif
+#endif // SPARSEFLOW_RUNTIME_H

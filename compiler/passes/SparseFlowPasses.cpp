@@ -7,6 +7,7 @@
 #include "mlir/Support/LLVM.h"
 #include "mlir/Support/FileUtilities.h"
 #include "mlir/Support/JSON.h"
+#include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/JSON.h"
 #include "llvm/Support/MemoryBuffer.h"
@@ -19,6 +20,11 @@
 #include <unordered_map>
 
 using namespace mlir;
+
+// Forward declarations for all pass registrations
+namespace mlir {
+void registerSparseMatmulRewritePass();
+}
 
 namespace {
 class AnnotateNmPass : public PassWrapper<AnnotateNmPass, OperationPass<>> {
@@ -153,4 +159,7 @@ void registerSparseFlowPasses() {
   PassRegistration<ExportMetadataPass>(
       "sparseflow-export-metadata",
       "Export hardware configuration metadata to JSON");
+
+  // Register the sparse matmul rewrite pass
+  mlir::registerSparseMatmulRewritePass();
 }

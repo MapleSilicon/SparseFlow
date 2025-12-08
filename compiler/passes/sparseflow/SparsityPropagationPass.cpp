@@ -383,6 +383,10 @@ struct SparsityPropagationPass
 
 } // namespace
 
+namespace {
+inline PassRegistration<SparsityPropagationPass> registerPass;
+}
+
 void registerSparsityPropagationPass() {
   PassRegistration<SparsityPropagationPass>();
 }

@@ -5,7 +5,6 @@ find_package(MLIR REQUIRED CONFIG)
 
 include_directories(${LLVM_INCLUDE_DIRS})
 include_directories(${MLIR_INCLUDE_DIRS})
-add_definitions(${LLVM_DEFINITIONS})
 
 add_library(SparseFlowPasses MODULE
   SparseFlowPassPlugin.cpp
@@ -13,11 +12,10 @@ add_library(SparseFlowPasses MODULE
   ExportMetadataPass.cpp
   FlopCounterPass.cpp
   SPAExportPass.cpp
-  sparseflow/SPADomain.cpp
   sparseflow/SparsityPropagationPass.cpp
+  sparseflow/SPADomain.cpp
+  SparseMatmulRewritePass.cpp
 )
-
-target_compile_features(SparseFlowPasses PRIVATE cxx_std_17)
 
 target_link_libraries(SparseFlowPasses
   MLIRIR
@@ -30,10 +28,5 @@ target_link_libraries(SparseFlowPasses
 set_target_properties(SparseFlowPasses PROPERTIES
   PREFIX ""
   SUFFIX ".so"
-  OUTPUT_NAME "SparseFlowPasses"
   LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/passes"
-)
-
-set_target_properties(SparseFlowPasses PROPERTIES
-  PREFIX ""
 )

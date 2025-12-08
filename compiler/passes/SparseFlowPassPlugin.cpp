@@ -1,34 +1,32 @@
-#include "mlir/Tools/Plugins/PassPlugin.h"
+//===- SparseFlowPassPlugin.cpp ------------------------------------------===//
+//
+// Minimal MLIR pass plugin entrypoint for SparseFlow.
+//
+// All individual passes (SPA, SPAExport, FlopCounter, AnnotateNm,
+// SparseMatmulRewrite, etc.) are registered via static PassRegistration
+// objects in their own .cpp files.
+//
+// This file ONLY exposes mlirGetPassPluginInfo so that mlir-opt can
+// dlopen() the plugin with --load-pass-plugin and see those passes.
+//
+//===----------------------------------------------------------------------===//
+
 #include "mlir/Pass/Pass.h"
+#include "mlir/Tools/Plugins/PassPlugin.h"
 
-// Forward declarations
-void registerAnnotateNmPass();
-void registerFlopCounterPass();
-void registerSparsityPropagationPass();
-void registerSPAExportPass();
+using namespace mlir;
 
-namespace mlir {
-void registerExportMetadataPass();
-}
-
-#if defined(_WIN32)
-  #define MLIR_PASSP_PLUGIN_EXPORT __declspec(dllexport)
-#else
-  #define MLIR_PASSP_PLUGIN_EXPORT __attribute__((visibility("default")))
-#endif
-
-extern "C" MLIR_PASSP_PLUGIN_EXPORT mlir::PassPluginLibraryInfo
-mlirGetPassPluginInfo() {
+/// Pass plugin registration mechanism.
+/// Necessary symbol to register the pass plugin.
+extern "C" LLVM_ATTRIBUTE_WEAK PassPluginLibraryInfo mlirGetPassPluginInfo() {
   return {
-    MLIR_PLUGIN_API_VERSION,
-    "SparseFlowPasses",
-    "0.7",
-    []() {
-      registerAnnotateNmPass();
-      mlir::registerExportMetadataPass();
-      registerFlopCounterPass();
-      registerSparsityPropagationPass();
-      registerSPAExportPass();
-    }
-  };
+      MLIR_PLUGIN_API_VERSION,
+      "SparseFlowPasses",
+      LLVM_VERSION_STRING,
+      []() {
+        // NOTE:
+        // We do NOT need to call any registerXYZPass() functions here.
+        // Each pass file uses static PassRegistration<...>, so loading
+        // this .so is enough to register all "sparseflow-*" passes.
+      }};
 }
