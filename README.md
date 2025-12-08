@@ -331,3 +331,57 @@ SparseFlow provides a small convenience wrapper around \`mlir-opt\` to run SPA:
 ./sparseflow-opt.sh tests/test_spa_v6_full_2d.mlir > /tmp/out.mlir
 cat spa_sparsity.json
 
+
+## Results — 2:4 Structured Sparsity (CPU / OpenMP)
+
+SparseFlow v0.1 implements a full MLIR-based compiler and runtime path for 2:4 structured sparsity on CPU with OpenMP.
+
+We validate three things:
+
+1. **Correctness** — JIT-executed sparse matmul matches dense matmul.
+2. **Performance** — Sparse runtime is measurably faster than dense.
+3. **Compiler Integration** — SPA + rewrite + lowering + JIT all work together.
+
+### 1. JIT Correctness
+
+Run:
+
+```bash
+cd compiler/build
+./test_jit_correctness
+\`\`\`bash
+cd compiler/build
+./test_jit_correctness
+\`\`\`
+
+Sample output:
+
+\`\`\`text
+=== JIT Correctness Test ===
+Test 4x4:  PASS
+Test 8x8:  PASS
+Test 16x16: PASS
+Test 32x32: PASS
+
+Results: 4/4 passed
+\`\`\`
+./test_jit_correctness
+
+## Results — 2:4 Structured Sparsity (CPU / OpenMP)
+
+SparseFlow v0.1 implements a full MLIR-based compiler and runtime path for 2:4 structured sparsity on CPU with OpenMP.
+
+We validate three things:
+
+1. **Correctness** — JIT-executed sparse matmul matches a dense reference.
+2. **Performance** — The sparse runtime is measurably faster than dense.
+3. **Compiler Integration** — SPA + rewrite + lowering + JIT all work together.
+
+### 1. JIT Correctness
+
+Run:
+
+```bash
+cd compiler/build
+./test_jit_correctness
+
