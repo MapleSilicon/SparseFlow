@@ -1,6 +1,6 @@
-# SparseFlow v0.1 - Compiler-Driven Sparse Inference (4× Speedup Achieved)
+# SparseFlow v0.1 Announcement Templates
 
-## For LinkedIn:
+## LinkedIn Post
 
 🚀 Excited to announce SparseFlow v0.1 - an open-source MLIR-based compiler that automatically detects and exploits structured sparsity in neural networks!
 
@@ -8,90 +8,103 @@
 ✅ 4× average speedup on sparse matrix operations
 ✅ 75% FLOP reduction with zero accuracy loss
 ✅ Full compiler stack: Analysis → Transform → Execute
-✅ 100% correctness validation across all test cases
+✅ 100% correctness validation
 
 **Technical Highlights:**
-- Static sparsity analysis at compile time (no runtime profiling)
-- Automatic rewriting of dense operations to sparse kernels
-- OpenMP-optimized CPU runtime (GPU coming in v0.3)
+- Static sparsity analysis at compile time
+- Automatic rewriting of dense operations
+- OpenMP-optimized CPU runtime
 - JIT execution via LLVM
-
-This represents months of work building a complete compiler pipeline from scratch - from MLIR passes to runtime kernels to JIT execution.
 
 **What's Next:**
 Working on N:M generalized sparsity (v0.2), GPU acceleration (v0.3), and PyTorch integration (v0.5).
 
-Repo: [Your GitHub Link]
-Roadmap: [Link to ROADMAP.md]
+🔗 GitHub: https://github.com/MapleSilicon/SparseFlow
+📊 Full roadmap: https://github.com/MapleSilicon/SparseFlow/blob/main/ROADMAP.md
 
-Would love feedback from the compiler/ML community! 
+Would love feedback from the compiler/ML community!
 
-#MachineLearning #Compilers #MLIR #SparseInference #AI #OpenSource
+#MachineLearning #Compilers #MLIR #AI #OpenSource
 
 ---
 
-## For Reddit (r/MachineLearning, r/MLIR, r/Programming):
+## Reddit Post (r/MachineLearning)
 
 **Title:** [P] SparseFlow v0.1: MLIR Compiler for Sparse Neural Network Inference (4× Speedup)
 
-I've been building a compiler that automatically detects and exploits structured sparsity in neural networks. Today I'm releasing v0.1!
-
-**What it does:**
-- Analyzes MLIR IR to detect sparsity patterns
-- Automatically rewrites dense operations to sparse equivalents  
-- JIT compiles and executes with optimized runtime kernels
-- Delivers 3.6-4.5× speedup on 50% sparse matrices
+I've built a compiler that automatically detects and exploits structured sparsity in neural networks!
 
 **Performance Results:**
 ```
-Size      | Dense (ms) | Sparse (ms) | Speedup
-----------|------------|-------------|--------
-128×128   | 2.21      | 0.54        | 4.09×
-256×256   | 20.24     | 5.33        | 3.80×
-512×512   | 247.74    | 54.49       | 4.55×
-1024×1024 | 2575.15   | 713.08      | 3.61×
+Size      | Dense | Sparse | Speedup
+128×128   | 2.21ms| 0.54ms | 4.09×
+256×256   | 20.24 | 5.33   | 3.80×
+512×512   | 247.7 | 54.5   | 4.55×
+1024×1024 | 2575  | 713    | 3.61×
 ```
 
-**Architecture:**
-1. SPA (Sparsity Propagation Analysis) pass detects patterns
-2. Rewrite pass converts `linalg.matmul` → sparse runtime calls
-3. LLVM lowers to native code
-4. ExecutionEngine JITs and runs with OpenMP kernels
+**How it works:**
+1. SPA pass analyzes MLIR IR for sparsity patterns
+2. Rewrite pass converts dense ops to sparse kernels
+3. LLVM JIT compiles and executes
+4. OpenMP runtime delivers 4× speedup
 
-**Current Status (v0.1):**
-✅ Working compiler passes
+**Current status (v0.1):**
+✅ Working compiler pipeline
 ✅ CPU runtime with OpenMP
-✅ Full JIT execution pipeline
-✅ Validated correctness
+✅ 100% correctness validated
 ✅ Measured performance gains
 
 **Roadmap:**
-- v0.2 (Q1 2025): N:M generalized sparsity, Python API
-- v0.3 (Q2 2025): CUDA GPU kernels
-- v0.4 (Q2-Q3): Real neural networks (CNNs, Transformers)
-- v0.5 (Q3): PyTorch `torch.compile()` backend
+- Q1 2025: Python API, N:M patterns
+- Q2 2025: CUDA GPU kernels
+- Q3 2025: PyTorch integration
 
-**Why this matters:**
-Most ML frameworks treat sparsity as a runtime concern. SparseFlow does it at compile time, eliminating profiling overhead and guaranteeing correctness through static analysis.
-
-GitHub: [Your Link]
-Demo: Single command runs full pipeline with benchmarks
+GitHub: https://github.com/MapleSilicon/SparseFlow
 
 Happy to answer questions about the compiler design, MLIR implementation, or performance optimization!
 
 ---
 
-## For Twitter/X:
+## Twitter/X
 
 🚀 Just released SparseFlow v0.1 - an MLIR compiler for sparse neural network inference
 
-✅ 4× speedup on sparse matmul
-✅ Zero accuracy loss  
-✅ Compile-time analysis (no profiling)
-✅ Full JIT execution pipeline
+✅ 4× speedup
+✅ Zero accuracy loss
+✅ Compile-time analysis
+✅ Full JIT pipeline
 
 Next: GPU support, PyTorch integration
 
-[GitHub Link]
+https://github.com/MapleSilicon/SparseFlow
 
-#MLIR #MachineLearning #Compilers
+#MLIR #ML #Compilers
+
+---
+
+## Hacker News
+
+**Title:** Show HN: SparseFlow – MLIR Compiler for Sparse Neural Network Inference (4× speedup)
+
+I've been building a compiler that exploits structured sparsity in neural networks. It performs static analysis at compile time (no profiling), automatically rewrites operations, and delivers 4× speedups via JIT execution.
+
+Results on 50% sparse matrices:
+- 128×128: 4.09× speedup
+- 256×256: 3.80× speedup
+- 512×512: 4.55× speedup
+- 1024×1024: 3.61× speedup
+
+The compiler uses MLIR for IR, OpenMP for CPU parallelization, and LLVM for JIT compilation. Everything is validated for correctness.
+
+Roadmap includes GPU acceleration (Q2 2025) and PyTorch integration (Q3 2025).
+
+GitHub: https://github.com/MapleSilicon/SparseFlow
+
+---
+
+## Contact
+
+**Email**: maplesilicon1@gmail.com
+**GitHub**: https://github.com/MapleSilicon/SparseFlow
+**Issues**: https://github.com/MapleSilicon/SparseFlow/issues

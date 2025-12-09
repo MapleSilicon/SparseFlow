@@ -1,13 +1,12 @@
 # SparseFlow Roadmap
 
-> **Current Version:** v0.1.0 (December 2025)  
-> **Target:** v1.0 Production Release (Q1 2026)
+> **Current Version:** v0.1.0 (December 2024)  
+> **Target:** v1.0 Production Release (Q4 2025)  
+> **GitHub**: [MapleSilicon/SparseFlow](https://github.com/MapleSilicon/SparseFlow)
 
 ## Vision
 
 SparseFlow is building the **first compiler-driven sparse tensor inference system** that automatically detects, analyzes, and exploits structured sparsity in neural networks—delivering 3-5× speedups on commodity hardware with zero accuracy loss.
-
----
 
 ## 🎯 Current Status (v0.1.0)
 
@@ -30,8 +29,6 @@ SparseFlow is building the **first compiler-driven sparse tensor inference syste
 
 **Average: 4× speedup with 75% FLOP reduction**
 
----
-
 ## 🗺️ Roadmap to v1.0
 
 ### v0.2 – Generalized Sparsity (Q1 2025, 6-8 weeks)
@@ -39,15 +36,13 @@ SparseFlow is building the **first compiler-driven sparse tensor inference syste
 **Goal:** Make SparseFlow production-ready for real ML workloads
 
 #### Features
-- [ ] **N:M Structured Sparsity** - Support 1:4, 2:8, 4:16, 8:32 patterns (not just 2:4)
+- [ ] **N:M Structured Sparsity** - Support 1:4, 2:8, 4:16, 8:32 patterns
 - [ ] **Python API** - Simple interface: `sparseflow.compile(model)`
-- [ ] **Stable Runtime ABI** - Future-proof C++ API with explicit mask support
+- [ ] **Stable Runtime ABI** - Future-proof C++ API
 - [ ] **Extended Validation** - Correctness tests across all N:M patterns
-- [ ] **Documentation** - Architecture guide, API reference, tutorials
+- [ ] **Documentation** - Architecture guide, API reference
 
 **Success Metric:** External developer can use SparseFlow without reading compiler code
-
----
 
 ### v0.3 – GPU Acceleration (Q2 2025, 10-12 weeks)
 
@@ -57,27 +52,21 @@ SparseFlow is building the **first compiler-driven sparse tensor inference syste
 - [ ] **CUDA Sparse Kernels** - Warp-level 2:4 structured matmul
 - [ ] **GPU Lowering Pass** - MLIR GPU dialect integration
 - [ ] **Device-Aware SPA** - CPU vs GPU kernel selection
-- [ ] **Multi-GPU Support** - Distributed sparse inference
 - [ ] **Benchmarks vs cuSPARSELt** - Head-to-head comparison
 
 **Success Metric:** 5-15× GPU speedup matching NVIDIA Tensor Core performance
 
----
-
 ### v0.4 – Real Neural Networks (Q2-Q3 2025, 8-10 weeks)
 
-**Goal:** Prove SparseFlow works on actual models, not just matmul
+**Goal:** Prove SparseFlow works on actual models
 
 #### Features
 - [ ] **Conv2D Support** - Sparse convolution for CNNs
 - [ ] **Batch MatMul** - Transformer-ready operations
-- [ ] **Sparse Attention** - Q×K^T optimization for transformers
+- [ ] **Sparse Attention** - Q×K^T optimization
 - [ ] **End-to-End Models** - ResNet50, BERT-base demos
-- [ ] **Accuracy Validation** - Numerical precision analysis
 
 **Success Metric:** 2-4× end-to-end speedup on real model inference
-
----
 
 ### v0.5 – PyTorch Integration (Q3 2025, 3-4 months)
 
@@ -85,14 +74,11 @@ SparseFlow is building the **first compiler-driven sparse tensor inference syste
 
 #### Features
 - [ ] **torch.compile() Backend** - `torch.compile(model, backend="sparseflow")`
-- [ ] **Automatic Sparsity Detection** - No manual annotation needed
-- [ ] **Training Integration** - Sparsity-aware fine-tuning
+- [ ] **Automatic Sparsity Detection** - No manual annotation
 - [ ] **Model Zoo** - Pre-optimized sparse models
-- [ ] **Benchmarks** - GPT-2, BERT, ResNet, ViT, Stable Diffusion
+- [ ] **Benchmarks** - GPT-2, BERT, ResNet, ViT
 
 **Success Metric:** 20-50% end-to-end speedup with < 5 lines of user code
-
----
 
 ### v1.0 – Production Release (Q4 2025)
 
@@ -102,19 +88,8 @@ SparseFlow is building the **first compiler-driven sparse tensor inference syste
 - ✅ **Multi-Pattern Sparsity** - Arbitrary N:M structured patterns
 - ✅ **CPU + GPU Backends** - Optimized for both platforms
 - ✅ **Framework Integration** - PyTorch, ONNX, JAX support
-- ✅ **Operator Coverage** - matmul, conv, attention, pooling
+- ✅ **Operator Coverage** - matmul, conv, attention
 - ✅ **Production Tools** - Profiling, debugging, visualization
-- ✅ **Documentation** - Complete guides, examples, benchmarks
-
-#### Benchmarks (Target)
-- GPT-2: 2-3× inference speedup
-- BERT-base: 2-4× inference speedup
-- ResNet50: 1.5-2× inference speedup
-- Stable Diffusion Attention: 3-5× speedup
-
-**Success Metric:** Adopted by 3+ production ML teams
-
----
 
 ## 🎯 Why SparseFlow?
 
@@ -135,33 +110,26 @@ SparseFlow is building the **first compiler-driven sparse tensor inference syste
 - No model retraining required
 - Drop-in replacement for dense operations
 
----
-
 ## 🤝 Contributing
 
-SparseFlow is open for contributions! We're especially interested in:
+SparseFlow is open for contributions! Areas of interest:
 
 - **Compiler Engineers**: MLIR passes, optimization strategies
 - **Performance Engineers**: CUDA kernels, CPU vectorization
 - **ML Researchers**: Sparsity patterns, model analysis
 - **Framework Integrators**: PyTorch/ONNX/JAX plugins
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
-
----
+See [GitHub Issues](https://github.com/MapleSilicon/SparseFlow/issues) for current tasks.
 
 ## 📫 Contact
 
-- **GitHub**: [Your GitHub]
-- **Email**: [Your Email]
-- **Twitter/X**: [@YourHandle]
-- **LinkedIn**: [Your LinkedIn]
+- **Email**: maplesilicon1@gmail.com
+- **GitHub Issues**: [MapleSilicon/SparseFlow/issues](https://github.com/MapleSilicon/SparseFlow/issues)
+- **GitHub Discussions**: [MapleSilicon/SparseFlow/discussions](https://github.com/MapleSilicon/SparseFlow/discussions)
 
----
+## �� License
 
-## 📜 License
-
-[Your License - MIT recommended for community adoption]
+MIT License
 
 ---
 

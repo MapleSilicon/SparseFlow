@@ -7,6 +7,8 @@
 [![Version](https://img.shields.io/badge/version-0.1.0-green.svg)](CHANGELOG.md)
 [![MLIR](https://img.shields.io/badge/MLIR-19.x-orange.svg)](https://mlir.llvm.org/)
 
+**GitHub**: [MapleSilicon/SparseFlow](https://github.com/MapleSilicon/SparseFlow)
+
 ---
 
 ## 🚀 What is SparseFlow?
@@ -35,15 +37,23 @@ Matrix Size | Dense Time | Sparse Time | Speedup
 
 ## 🎯 Quick Start
 
-### Installation
+### Prerequisites
+
+- LLVM/MLIR 19.x
+- CMake 3.20+
+- C++17 compiler
+- OpenMP (for runtime)
+
+### Build
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/SparseFlow
+git clone https://github.com/MapleSilicon/SparseFlow
 cd SparseFlow
 
 # Build compiler
 cd compiler/build
-cmake .. -DMLIR_DIR=/path/to/mlir -DLLVM_DIR=/path/to/llvm
+cmake .. -DMLIR_DIR=/usr/lib/llvm-19/lib/cmake/mlir \
+         -DLLVM_DIR=/usr/lib/llvm-19/lib/cmake/llvm
 make -j8
 
 # Build runtime
@@ -54,6 +64,7 @@ make -j8
 
 ### Run Demo
 ```bash
+cd ~/src/SparseFlow
 ./run_sparseflow_demo.sh
 ```
 
@@ -61,7 +72,6 @@ make -j8
 ```
 ╔════════════════════════════════════════════════════════════════╗
 ║           SparseFlow Compiler Demo v0.1                       ║
-║  End-to-End: MLIR → SPA → Rewrite → LLVM → JIT → Performance ║
 ╚════════════════════════════════════════════════════════════════╝
 
 ✅ Correctness: 4/4 tests passed
@@ -77,22 +87,18 @@ Input MLIR
     ↓
 ┌─────────────────────┐
 │  SPA Analysis       │  ← Detects sparsity patterns
-│  (Compiler Pass)    │
 └─────────────────────┘
     ↓
 ┌─────────────────────┐
 │  Rewrite Pass       │  ← Converts to sparse ops
-│  (Transformation)   │
 └─────────────────────┘
     ↓
 ┌─────────────────────┐
 │  LLVM Lowering      │  ← Generates native code
-│  (Code Generation)  │
 └─────────────────────┘
     ↓
 ┌─────────────────────┐
 │  JIT Execution      │  ← Runs with runtime kernel
-│  (ExecutionEngine)  │
 └─────────────────────┘
     ↓
 Output (4× faster)
@@ -105,7 +111,7 @@ Output (4× faster)
 ### Sparsity Propagation Analysis (SPA)
 - **Static analysis** - No runtime profiling needed
 - **2D mask propagation** - Tracks row & column sparsity
-- **Correctness guaranteed** - Conservative analysis ensures no errors
+- **Correctness guaranteed** - Conservative analysis
 
 ### Automatic Rewriting
 - Converts `linalg.matmul` → `@sparse_matmul_2_4`
@@ -115,7 +121,7 @@ Output (4× faster)
 ### Optimized Runtime
 - **OpenMP parallelization** - Multi-core CPU execution
 - **Cache-optimized** - Skips zero blocks
-- **Vectorized** - SIMD instructions where possible
+- **Vectorized** - SIMD instructions
 
 ---
 
@@ -141,7 +147,7 @@ See [ROADMAP.md](ROADMAP.md) for detailed development plan.
 **Next milestones:**
 - **v0.2** (Q1 2025): N:M generalized sparsity, Python API
 - **v0.3** (Q2 2025): GPU acceleration (CUDA kernels)
-- **v0.4** (Q2-Q3 2025): Real neural networks (CNNs, Transformers)
+- **v0.4** (Q2-Q3 2025): Real neural networks
 - **v0.5** (Q3 2025): PyTorch integration
 - **v1.0** (Q4 2025): Production release
 
@@ -157,41 +163,21 @@ We welcome contributions! Areas of interest:
 - Benchmark development
 - Documentation
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
----
-
-## 📚 Documentation
-
-- [Architecture Overview](docs/architecture.md)
-- [API Reference](docs/api.md)
-- [Developer Guide](docs/development.md)
-- [Benchmarking Guide](docs/benchmarks.md)
+See our [issues](https://github.com/MapleSilicon/SparseFlow/issues) for current tasks.
 
 ---
 
 ## 📄 License
 
-[MIT License](LICENSE) - See LICENSE file for details
-
----
-
-## 🙏 Acknowledgments
-
-Built with:
-- [MLIR](https://mlir.llvm.org/) - Multi-Level Intermediate Representation
-- [LLVM](https://llvm.org/) - Compiler infrastructure
-- [OpenMP](https://www.openmp.org/) - Parallel programming
-
-Inspired by research in structured sparsity and compiler optimization.
+MIT License - See LICENSE file for details
 
 ---
 
 ## 📫 Contact
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/SparseFlow/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/SparseFlow/discussions)
-- **Email**: your.email@example.com
+- **Email**: maplesilicon1@gmail.com
+- **GitHub Issues**: [MapleSilicon/SparseFlow/issues](https://github.com/MapleSilicon/SparseFlow/issues)
+- **GitHub Discussions**: [MapleSilicon/SparseFlow/discussions](https://github.com/MapleSilicon/SparseFlow/discussions)
 
 ---
 
