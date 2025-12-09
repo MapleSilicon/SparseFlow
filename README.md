@@ -3,6 +3,7 @@
 > **Compiler-Driven Sparse Tensor Inference**  
 > Automatic sparsity detection and exploitation for 3-5× faster neural network inference
 
+[![Build & Demo](https://github.com/MapleSilicon/SparseFlow/actions/workflows/demo.yml/badge.svg)](https://github.com/MapleSilicon/SparseFlow/actions/workflows/demo.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/version-0.1.0-green.svg)](CHANGELOG.md)
 [![MLIR](https://img.shields.io/badge/MLIR-19.x-orange.svg)](https://mlir.llvm.org/)
@@ -33,18 +34,21 @@ Matrix Size | Dense Time | Sparse Time | Speedup
 
 **Average: 4× faster with 75% fewer operations**
 
+> 💡 **See it in action**: Check the [GitHub Actions](https://github.com/MapleSilicon/SparseFlow/actions) tab for live demo runs!
+
 ---
 
 ## 🎯 Quick Start
 
-### Prerequisites
+### Run Online Demo
 
-- LLVM/MLIR 19.x
-- CMake 3.20+
-- C++17 compiler
-- OpenMP (for runtime)
+Click here to run the demo in GitHub Actions:
 
-### Build
+[![Run Demo](https://img.shields.io/badge/Run-Demo-success?style=for-the-badge&logo=github)](https://github.com/MapleSilicon/SparseFlow/actions/workflows/demo.yml)
+
+Or manually trigger: Actions → SparseFlow Demo → Run workflow
+
+### Local Installation
 ```bash
 # Clone repository
 git clone https://github.com/MapleSilicon/SparseFlow
@@ -60,23 +64,10 @@ make -j8
 cd ../../runtime/build
 cmake ..
 make -j8
-```
 
-### Run Demo
-```bash
+# Run demo
 cd ~/src/SparseFlow
 ./run_sparseflow_demo.sh
-```
-
-**Output:**
-```
-╔════════════════════════════════════════════════════════════════╗
-║           SparseFlow Compiler Demo v0.1                       ║
-╚════════════════════════════════════════════════════════════════╝
-
-✅ Correctness: 4/4 tests passed
-✅ Performance: 3.6-4.5× speedup achieved
-✅ Pipeline: Complete end-to-end execution
 ```
 
 ---
