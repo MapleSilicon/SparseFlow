@@ -19,3 +19,8 @@ endif()
 
 add_executable(test_runtime test_runtime.cpp)
 target_link_libraries(test_runtime PRIVATE sparseflow_runtime)
+
+# N:M pattern test
+add_executable(test_nm_runtime test_nm_runtime.cpp)
+target_link_libraries(test_nm_runtime PRIVATE sparseflow_runtime)
+target_include_directories(test_nm_runtime PRIVATE ${CMAKE_SOURCE_DIR}/include)
