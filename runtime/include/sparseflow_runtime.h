@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <cstddef>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -19,6 +20,15 @@ struct BenchmarkResult {
     int64_t sparse_flops;
 };
 
+// Pattern validation result
+struct ValidationResult {
+    bool is_valid;
+    int expected_nonzeros_per_block;
+    int actual_nonzeros_per_block;
+    int invalid_blocks;
+    int total_blocks;
+};
+
 // Create sparse matrix with row/col masks
 SparseMatrix sparseflow_create_matrix(
     const bool* rowmask, int rows,
@@ -26,13 +36,28 @@ SparseMatrix sparseflow_create_matrix(
 
 void sparseflow_destroy_matrix(SparseMatrix mat);
 
+// Validate N:M pattern in a tensor
+// Returns true if tensor conforms to N:M structure
+bool validate_nm_pattern(
+    const float* tensor,
+    int rows, int cols,
+    int N, int M,
+    float zero_threshold);
+
+// Detailed validation with statistics
+ValidationResult validate_nm_pattern_detailed(
+    const float* tensor,
+    int rows, int cols,
+    int N, int M,
+    float zero_threshold);
+
 // Generic N:M sparse matmul implementation
 void sparse_matmul_2_4_impl(
     float* C, const float* A, const float* B,
     int M, int K, int N,
     const bool* rowmask_A, const bool* colmask_B);
 
-// New: Specific N:M pattern kernels
+// Specific N:M pattern kernels
 void sparse_matmul_1_4(
     float* out, const float* lhs, const float* rhs,
     int64_t* out_shape, int64_t* lhs_shape, int64_t* rhs_shape);

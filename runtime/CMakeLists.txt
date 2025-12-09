@@ -24,3 +24,8 @@ target_link_libraries(test_runtime PRIVATE sparseflow_runtime)
 add_executable(test_nm_runtime test_nm_runtime.cpp)
 target_link_libraries(test_nm_runtime PRIVATE sparseflow_runtime)
 target_include_directories(test_nm_runtime PRIVATE ${CMAKE_SOURCE_DIR}/include)
+
+# Pattern validation test
+add_executable(test_pattern_validation test_pattern_validation.cpp)
+target_link_libraries(test_pattern_validation PRIVATE sparseflow_runtime)
+target_include_directories(test_pattern_validation PRIVATE ${CMAKE_SOURCE_DIR}/include)

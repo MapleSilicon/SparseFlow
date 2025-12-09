@@ -203,3 +203,94 @@ BenchmarkResult sparseflow_benchmark_matmul(
 }
 
 } // extern "C"
+
+// Pattern validation functions
+
+bool validate_nm_pattern(
+    const float* tensor,
+    int rows, int cols,
+    int N, int M,
+    float zero_threshold = 1e-6f) {
+    
+    if (N > M || M <= 0 || N <= 0) return false;
+    
+    // Check row-wise N:M structure
+    for (int i = 0; i < rows; i += M) {
+        int block_size = (i + M <= rows) ? M : (rows - i);
+        
+        for (int j = 0; j < cols; j++) {
+            int nonzeros = 0;
+            
+            // Count non-zeros in this M-element block
+            for (int bi = 0; bi < block_size; bi++) {
+                float val = tensor[(i + bi) * cols + j];
+                if (val > zero_threshold || val < -zero_threshold) {
+                    nonzeros++;
+                }
+            }
+            
+            // For a valid N:M pattern, each block should have at most N non-zeros
+            // (We're being conservative here)
+            if (nonzeros > N && block_size == M) {
+                return false;
+            }
+        }
+    }
+    
+    return true;
+}
+
+ValidationResult validate_nm_pattern_detailed(
+    const float* tensor,
+    int rows, int cols,
+    int N, int M,
+    float zero_threshold = 1e-6f) {
+    
+    ValidationResult result;
+    result.expected_nonzeros_per_block = N;
+    result.actual_nonzeros_per_block = 0;
+    result.invalid_blocks = 0;
+    result.total_blocks = 0;
+    result.is_valid = true;
+    
+    if (N > M || M <= 0 || N <= 0) {
+        result.is_valid = false;
+        return result;
+    }
+    
+    int total_nonzeros = 0;
+    
+    // Check row-wise N:M structure
+    for (int i = 0; i < rows; i += M) {
+        int block_size = (i + M <= rows) ? M : (rows - i);
+        if (block_size != M) continue;  // Skip incomplete blocks
+        
+        for (int j = 0; j < cols; j++) {
+            result.total_blocks++;
+            int nonzeros = 0;
+            
+            // Count non-zeros in this M-element block
+            for (int bi = 0; bi < M; bi++) {
+                float val = tensor[(i + bi) * cols + j];
+                if (val > zero_threshold || val < -zero_threshold) {
+                    nonzeros++;
+                }
+            }
+            
+            total_nonzeros += nonzeros;
+            
+            // Check if block violates N:M constraint
+            if (nonzeros > N) {
+                result.invalid_blocks++;
+                result.is_valid = false;
+            }
+        }
+    }
+    
+    if (result.total_blocks > 0) {
+        result.actual_nonzeros_per_block = total_nonzeros / result.total_blocks;
+    }
+    
+    return result;
+}
+
