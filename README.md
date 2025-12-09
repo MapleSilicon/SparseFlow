@@ -34,6 +34,13 @@ Supports the following patterns out of the box:
 ### ✅ Real Performance  
 SparseFlow achieves **9×–20× speedup** on CPU for realistic matrix sizes, significantly outperforming typical sparse CPU libraries.
 
+## 📊 Detailed Benchmarks
+
+Full dense vs N:M sparse CPU benchmark tables (all patterns and sizes) are in:
+
+- [BENCHMARK_RESULTS_v0.2.md](./BENCHMARK_RESULTS_v0.2.md)
+
+
 ---
 
 ## 📊 Benchmark Results (REAL HARDWARE)

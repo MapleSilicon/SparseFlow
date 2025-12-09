@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.20)
 project(SparseFlowCompiler)
 
 find_package(MLIR REQUIRED CONFIG)
@@ -18,10 +18,8 @@ include(HandleLLVMOptions)
 include_directories(${LLVM_INCLUDE_DIRS})
 include_directories(${MLIR_INCLUDE_DIRS})
 include_directories(${PROJECT_SOURCE_DIR}/include)
-include_directories(${PROJECT_BINARY_DIR}/include)
 
-link_directories(${LLVM_BUILD_LIBRARY_DIR})
 add_definitions(${LLVM_DEFINITIONS})
 
-# Build the passes subdirectory
+# Build only the passes
 add_subdirectory(passes)
