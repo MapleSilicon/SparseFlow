@@ -14,8 +14,10 @@ namespace {
 
 using sparseflow::makeDense;
 using sparseflow::makeZero;
+using sparseflow::makeNMPattern;
 using sparseflow::intersect2D;
 using sparseflow::union2D;
+using sparseflow::propagateNMPattern;
 
 struct SparsityPropagationPass
     : public PassWrapper<SparsityPropagationPass, OperationPass<ModuleOp>> {
@@ -107,14 +109,14 @@ struct SparsityPropagationPass
           int n = nAttr.getInt();
           int m_val = mAttr.getInt();
           
-          MatrixSparsity sparse;
-          sparse.rowMask.reserve(rows);
-          for (int i = 0; i < rows; ++i) {
-            bool rowActive = ((i % m_val) < n);
-            sparse.rowMask.push_back(rowActive ? 1 : 0);
+          // Check direction (default: rowwise)
+          bool rowWise = true;
+          if (auto dirAttr = op->getAttrOfType<StringAttr>("sparseflow.direction")) {
+            rowWise = (dirAttr.getValue() == "row");
           }
-          sparse.colMask.assign(cols, 1);
-          return sparse;
+          
+          // Use new N:M pattern factory
+          return makeNMPattern(rows, cols, n, m_val, rowWise);
         }
       }
       
@@ -136,6 +138,7 @@ struct SparsityPropagationPass
   void attach(Operation *op, const MatrixSparsity &info) {
     MLIRContext *ctx = op->getContext();
     
+    // Attach row/col masks
     llvm::SmallVector<Attribute, 8> rowElems;
     rowElems.reserve(info.rowMask.size());
     for (auto bit : info.rowMask) {
@@ -149,6 +152,25 @@ struct SparsityPropagationPass
       colElems.push_back(BoolAttr::get(ctx, bit != 0));
     }
     op->setAttr("sparseflow.spa_colmask", ArrayAttr::get(ctx, colElems));
+    
+    // Attach N:M pattern metadata if present
+    if (info.rowPattern.has_value()) {
+      auto pattern = info.rowPattern.value();
+      op->setAttr("sparseflow.nm_n", 
+                  IntegerAttr::get(IntegerType::get(ctx, 32), pattern.N));
+      op->setAttr("sparseflow.nm_m", 
+                  IntegerAttr::get(IntegerType::get(ctx, 32), pattern.M));
+      op->setAttr("sparseflow.nm_direction", StringAttr::get(ctx, "row"));
+      op->setAttr("sparseflow.nm_pattern", StringAttr::get(ctx, pattern.getName()));
+    } else if (info.colPattern.has_value()) {
+      auto pattern = info.colPattern.value();
+      op->setAttr("sparseflow.nm_n", 
+                  IntegerAttr::get(IntegerType::get(ctx, 32), pattern.N));
+      op->setAttr("sparseflow.nm_m", 
+                  IntegerAttr::get(IntegerType::get(ctx, 32), pattern.M));
+      op->setAttr("sparseflow.nm_direction", StringAttr::get(ctx, "col"));
+      op->setAttr("sparseflow.nm_pattern", StringAttr::get(ctx, pattern.getName()));
+    }
   }
   
   void handleMatmul(linalg::MatmulOp mm) {
@@ -160,19 +182,18 @@ struct SparsityPropagationPass
     int64_t cols = resultType.getShape()[1];
     if (rows <= 0 || cols <= 0) return;
     
+    // Check for explicit N:M annotation on the matmul itself
     if (auto nAttr = mm->getAttrOfType<IntegerAttr>("sparseflow.n")) {
       if (auto mAttr = mm->getAttrOfType<IntegerAttr>("sparseflow.m")) {
         int n = nAttr.getInt();
         int m_val = mAttr.getInt();
         
-        MatrixSparsity outS;
-        outS.rowMask.reserve(rows);
-        for (int64_t i = 0; i < rows; ++i) {
-          bool rowActive = ((i % m_val) < n);
-          outS.rowMask.push_back(rowActive ? 1 : 0);
+        bool rowWise = true;
+        if (auto dirAttr = mm->getAttrOfType<StringAttr>("sparseflow.direction")) {
+          rowWise = (dirAttr.getValue() == "row");
         }
-        outS.colMask.assign(cols, 1);
         
+        MatrixSparsity outS = makeNMPattern(rows, cols, n, m_val, rowWise);
         S[result] = outS;
         attach(mm, outS);
         return;
@@ -192,12 +213,12 @@ struct SparsityPropagationPass
     int64_t lhsCols = lhsType.getShape()[1];
     int64_t rhsRows = rhsType.getShape()[0];
     
+    // Get sparsity with N:M pattern info
     MatrixSparsity lhsS = getSparsity(lhs, rows, lhsCols);
     MatrixSparsity rhsS = getSparsity(rhs, rhsRows, cols);
     
-    MatrixSparsity outS;
-    outS.rowMask = lhsS.rowMask;
-    outS.colMask = rhsS.colMask;
+    // Use pattern-aware propagation (preserves N:M structure)
+    MatrixSparsity outS = propagateNMPattern(lhsS, rhsS, /*isMatMul=*/true);
     
     S[result] = outS;
     attach(mm, outS);
