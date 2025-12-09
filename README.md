@@ -136,11 +136,11 @@ Validate correctness:
 See [ROADMAP.md](ROADMAP.md) for detailed development plan.
 
 **Next milestones:**
-- **v0.2** (Q1 2025): N:M generalized sparsity, Python API
-- **v0.3** (Q2 2025): GPU acceleration (CUDA kernels)
-- **v0.4** (Q2-Q3 2025): Real neural networks
-- **v0.5** (Q3 2025): PyTorch integration
-- **v1.0** (Q4 2025): Production release
+- **v0.2** (Q1 2026): N:M generalized sparsity, Python API
+- **v0.3** (Q2 2026): GPU acceleration (CUDA kernels)
+- **v0.4** (Q2-Q3 2026): Real neural networks
+- **v0.5** (Q3 2026): PyTorch integration
+- **v1.0** (Q4 2026): Production release
 
 ---
 

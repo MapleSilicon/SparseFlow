@@ -1,7 +1,7 @@
 # SparseFlow Roadmap
 
-> **Current Version:** v0.1.0 (December 2024)  
-> **Target:** v1.0 Production Release (Q4 2025)  
+> **Current Version:** v0.1.0 (December 2025)  
+> **Target:** v1.0 Production Release (Q4 2026)  
 > **GitHub**: [MapleSilicon/SparseFlow](https://github.com/MapleSilicon/SparseFlow)
 
 ## Vision
@@ -31,7 +31,7 @@ SparseFlow is building the **first compiler-driven sparse tensor inference syste
 
 ## 🗺️ Roadmap to v1.0
 
-### v0.2 – Generalized Sparsity (Q1 2025, 6-8 weeks)
+### v0.2 – Generalized Sparsity (Q1 2026, 6-8 weeks)
 
 **Goal:** Make SparseFlow production-ready for real ML workloads
 
@@ -44,7 +44,7 @@ SparseFlow is building the **first compiler-driven sparse tensor inference syste
 
 **Success Metric:** External developer can use SparseFlow without reading compiler code
 
-### v0.3 – GPU Acceleration (Q2 2025, 10-12 weeks)
+### v0.3 – GPU Acceleration (Q2 2026, 10-12 weeks)
 
 **Goal:** Deliver competitive GPU performance
 
@@ -56,7 +56,7 @@ SparseFlow is building the **first compiler-driven sparse tensor inference syste
 
 **Success Metric:** 5-15× GPU speedup matching NVIDIA Tensor Core performance
 
-### v0.4 – Real Neural Networks (Q2-Q3 2025, 8-10 weeks)
+### v0.4 – Real Neural Networks (Q2-Q3 2026, 8-10 weeks)
 
 **Goal:** Prove SparseFlow works on actual models
 
@@ -68,7 +68,7 @@ SparseFlow is building the **first compiler-driven sparse tensor inference syste
 
 **Success Metric:** 2-4× end-to-end speedup on real model inference
 
-### v0.5 – PyTorch Integration (Q3 2025, 3-4 months)
+### v0.5 – PyTorch Integration (Q3 2026, 3-4 months)
 
 **Goal:** Seamless integration with PyTorch ecosystem
 
@@ -80,7 +80,7 @@ SparseFlow is building the **first compiler-driven sparse tensor inference syste
 
 **Success Metric:** 20-50% end-to-end speedup with < 5 lines of user code
 
-### v1.0 – Production Release (Q4 2025)
+### v1.0 – Production Release (Q4 2026)
 
 **Goal:** Industry-grade sparse inference compiler
 
@@ -127,10 +127,10 @@ See [GitHub Issues](https://github.com/MapleSilicon/SparseFlow/issues) for curre
 - **GitHub Issues**: [MapleSilicon/SparseFlow/issues](https://github.com/MapleSilicon/SparseFlow/issues)
 - **GitHub Discussions**: [MapleSilicon/SparseFlow/discussions](https://github.com/MapleSilicon/SparseFlow/discussions)
 
-## �� License
+## 📜 License
 
 MIT License
 
 ---
 
-*Last Updated: December 2024*
+*Last Updated: December 2025*

@@ -17,10 +17,10 @@
 - JIT execution via LLVM
 
 **What's Next:**
-Working on N:M generalized sparsity (v0.2), GPU acceleration (v0.3), and PyTorch integration (v0.5).
+Working on N:M generalized sparsity (v0.2, Q1 2026), GPU acceleration (v0.3, Q2 2026), and PyTorch integration (v0.5, Q3 2026).
 
 🔗 GitHub: https://github.com/MapleSilicon/SparseFlow
-📊 Full roadmap: https://github.com/MapleSilicon/SparseFlow/blob/main/ROADMAP.md
+📊 Full roadmap: https://github.com/MapleSilicon/SparseFlow/blob/master/ROADMAP.md
 
 Would love feedback from the compiler/ML community!
 
@@ -56,9 +56,9 @@ Size      | Dense | Sparse | Speedup
 ✅ Measured performance gains
 
 **Roadmap:**
-- Q1 2025: Python API, N:M patterns
-- Q2 2025: CUDA GPU kernels
-- Q3 2025: PyTorch integration
+- Q1 2026: Python API, N:M patterns
+- Q2 2026: CUDA GPU kernels
+- Q3 2026: PyTorch integration
 
 GitHub: https://github.com/MapleSilicon/SparseFlow
 
@@ -75,7 +75,7 @@ Happy to answer questions about the compiler design, MLIR implementation, or per
 ✅ Compile-time analysis
 ✅ Full JIT pipeline
 
-Next: GPU support, PyTorch integration
+Next: GPU support (Q2 2026), PyTorch integration (Q3 2026)
 
 https://github.com/MapleSilicon/SparseFlow
 
@@ -97,7 +97,7 @@ Results on 50% sparse matrices:
 
 The compiler uses MLIR for IR, OpenMP for CPU parallelization, and LLVM for JIT compilation. Everything is validated for correctness.
 
-Roadmap includes GPU acceleration (Q2 2025) and PyTorch integration (Q3 2025).
+Roadmap includes GPU acceleration (Q2 2026) and PyTorch integration (Q3 2026).
 
 GitHub: https://github.com/MapleSilicon/SparseFlow
 
