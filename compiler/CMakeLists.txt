@@ -91,3 +91,11 @@ add_executable(benchmark_suite
 
 target_link_libraries(benchmark_suite PRIVATE sparseflow_runtime)
 target_include_directories(benchmark_suite PRIVATE ${CMAKE_SOURCE_DIR}/../runtime/include)
+
+# N:M pattern benchmark
+add_executable(benchmark_nm_patterns
+    build/benchmark_nm_patterns.cpp
+)
+
+target_link_libraries(benchmark_nm_patterns PRIVATE sparseflow_runtime)
+target_include_directories(benchmark_nm_patterns PRIVATE ${CMAKE_SOURCE_DIR}/../runtime/include)
