@@ -15,7 +15,7 @@ struct SPAExportPass : public PassWrapper<SPAExportPass, OperationPass<ModuleOp>
   
   StringRef getArgument() const final { return "sparseflow-spa-export"; }
   StringRef getDescription() const final {
-    return "Export SPA sparsity info to JSON";
+    return "Export SPA sparsity info with N:M patterns to JSON";
   }
   
   void runOnOperation() override {
@@ -24,6 +24,7 @@ struct SPAExportPass : public PassWrapper<SPAExportPass, OperationPass<ModuleOp>
     
     int opCount = 0;
     int sparseOps = 0;
+    int nmPatternOps = 0;  // NEW: Count ops with N:M patterns
     
     getOperation().walk([&](Operation *op) {
       if (!op->hasAttr("sparseflow.spa_rowmask") && 
@@ -36,6 +37,35 @@ struct SPAExportPass : public PassWrapper<SPAExportPass, OperationPass<ModuleOp>
       
       opObj["name"] = op->getName().getStringRef().str();
       opObj["id"] = opCount++;
+      
+      // Check for N:M pattern attributes
+      bool hasNMPattern = false;
+      if (op->hasAttr("sparseflow.nm_n") && op->hasAttr("sparseflow.nm_m")) {
+        hasNMPattern = true;
+        nmPatternOps++;
+        
+        llvm::json::Object nmPattern;
+        
+        auto nAttr = op->getAttrOfType<IntegerAttr>("sparseflow.nm_n");
+        auto mAttr = op->getAttrOfType<IntegerAttr>("sparseflow.nm_m");
+        
+        int N = nAttr.getInt();
+        int M = mAttr.getInt();
+        
+        nmPattern["N"] = N;
+        nmPattern["M"] = M;
+        nmPattern["density"] = (double)N / (double)M;
+        
+        if (auto dirAttr = op->getAttrOfType<StringAttr>("sparseflow.nm_direction")) {
+          nmPattern["direction"] = dirAttr.getValue().str();
+        }
+        
+        if (auto patternAttr = op->getAttrOfType<StringAttr>("sparseflow.nm_pattern")) {
+          nmPattern["pattern_name"] = patternAttr.getValue().str();
+        }
+        
+        opObj["nm_pattern"] = std::move(nmPattern);
+      }
       
       if (auto rowArr = op->getAttrOfType<ArrayAttr>("sparseflow.spa_rowmask")) {
         llvm::json::Array rowMask;
@@ -69,12 +99,15 @@ struct SPAExportPass : public PassWrapper<SPAExportPass, OperationPass<ModuleOp>
         }
       }
       
+      opObj["has_nm_pattern"] = hasNMPattern;
       operations.push_back(std::move(opObj));
     });
     
     root["operations"] = std::move(operations);
     root["total_operations"] = opCount;
     root["sparse_operations"] = sparseOps;
+    root["nm_pattern_operations"] = nmPatternOps;  // NEW
+    root["version"] = "v0.2";  // NEW: Version tracking
     
     std::string jsonStr;
     llvm::raw_string_ostream os(jsonStr);
@@ -84,9 +117,10 @@ struct SPAExportPass : public PassWrapper<SPAExportPass, OperationPass<ModuleOp>
     outFile << jsonStr;
     outFile.close();
     
-    llvm::outs() << "✅ Exported sparsity info to spa_sparsity.json\n";
+    llvm::outs() << "✅ Exported sparsity info to spa_sparsity.json (v0.2)\n";
     llvm::outs() << "   Total operations: " << opCount << "\n";
     llvm::outs() << "   Sparse operations: " << sparseOps << "\n";
+    llvm::outs() << "   N:M pattern operations: " << nmPatternOps << "\n";
   }
 };
 
