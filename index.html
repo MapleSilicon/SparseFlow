@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SparseFlow - Generalized N:M Sparse Compiler</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 60px 40px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 3em;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 20px;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 1.3em;
+            margin-bottom: 40px;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            margin: 40px 0;
+        }
+        
+        .stat-box {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 40px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 15px 40px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.6);
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+        
+        .btn-secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .features {
+            margin-top: 40px;
+            text-align: left;
+        }
+        
+        .feature {
+            padding: 15px;
+            margin: 10px 0;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .feature h3 {
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .feature p {
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌲 SparseFlow</h1>
+        <p class="subtitle">Generalized N:M Sparse Compiler for AI Inference</p>
+        
+        <div class="stats">
+            <div class="stat-box">
+                <div class="stat-number">20×</div>
+                <div class="stat-label">CPU Speedup</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">5</div>
+                <div class="stat-label">N:M Patterns</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">v0.2</div>
+                <div class="stat-label">Latest Release</div>
+            </div>
+        </div>
+        
+        <div class="button-group">
+            <a href="demo.html" class="btn btn-primary">🎮 Try Live Demo</a>
+            <a href="https://github.com/MapleSilicon/SparseFlow" class="btn btn-secondary" target="_blank">📦 View on GitHub</a>
+        </div>
+        
+        <div class="features">
+            <div class="feature">
+                <h3>⚡ Validated Performance</h3>
+                <p>9-20× CPU speedup on production workloads with reproducible benchmarks</p>
+            </div>
+            <div class="feature">
+                <h3>🧩 Generalized N:M Support</h3>
+                <p>Five patterns: 1:4, 2:4, 2:8, 4:16, 8:32 - all fully automatic</p>
+            </div>
+            <div class="feature">
+                <h3>🏗️ MLIR-Based Architecture</h3>
+                <p>Clean compiler pipeline with pattern-aware optimization passes</p>
+            </div>
+            <div class="feature">
+                <h3>✅ Production Ready</h3>
+                <p>Complete testing, documentation, and validation</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
