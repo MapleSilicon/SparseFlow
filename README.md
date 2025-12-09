@@ -173,3 +173,19 @@ MIT License - See LICENSE file for details
 ---
 
 *SparseFlow v0.1.0 - Making sparse inference fast and automatic*
+
+---
+
+## 🆕 What's New in v0.2
+
+**N:M Generalized Sparsity** (December 2025)
+
+- ✅ Support for 1:4, 2:4, 2:8, 4:16, 8:32 patterns
+- ✅ Pattern-aware compiler analysis
+- ✅ Automatic runtime kernel selection
+- ✅ Pattern validation tools
+- ✅ Comprehensive test suite
+
+See [v0.2 docs](docs/v0.2/NM_API.md) for details.
+
+---
