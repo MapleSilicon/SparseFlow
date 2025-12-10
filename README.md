@@ -189,3 +189,12 @@ cd ../../runtime/build
 
 **Generalized Sparse Compute for AI.**  
 **Simple. Fast. Open.**
+
+---
+
+## 📊 Detailed Benchmarks
+
+Full dense vs N:M sparse CPU benchmark tables (all patterns, sizes) are in:
+
+- [BENCHMARK_RESULTS_v0.2.md](./BENCHMARK_RESULTS_v0.2.md)
+
