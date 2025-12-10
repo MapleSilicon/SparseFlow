@@ -13,7 +13,6 @@ using namespace mlir;
 
 namespace {
 
-/// Extract N and M from tensor encoding
 static bool extractNMFromType(Type type, int &N, int &M) {
   auto ranked = mlir::dyn_cast<RankedTensorType>(type);
   if (!ranked)
@@ -102,7 +101,6 @@ struct SparseMatmulRewritePass
           loc, kernelName, TypeRange{},
           ValueRange{A, B, C, Mval, Kval, Nval});
 
-      // FIX: Use getResult(0) since matmul has one result
       matmul.getResult(0).replaceAllUsesWith(C);
       matmul.erase();
     });
