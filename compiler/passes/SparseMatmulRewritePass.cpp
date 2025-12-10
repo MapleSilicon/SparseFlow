@@ -13,8 +13,7 @@ using namespace mlir;
 
 namespace {
 
-/// Extract N and M from a RankedTensorType encoding:
-///   tensor<...xf32> {n = <i32>, m = <i32>}
+/// Extract N and M from tensor encoding
 static bool extractNMFromType(Type type, int &N, int &M) {
   auto ranked = mlir::dyn_cast<RankedTensorType>(type);
   if (!ranked)
@@ -34,7 +33,6 @@ static bool extractNMFromType(Type type, int &N, int &M) {
   return true;
 }
 
-/// Build runtime kernel symbol name: sparse_matmul_N_M
 static std::string buildKernelName(int N, int M) {
   std::ostringstream ss;
   ss << "sparse_matmul_" << N << "_" << M;
@@ -42,8 +40,7 @@ static std::string buildKernelName(int N, int M) {
 }
 
 struct SparseMatmulRewritePass
-    : public PassWrapper<SparseMatmulRewritePass,
-                         OperationPass<ModuleOp>> {
+    : public PassWrapper<SparseMatmulRewritePass, OperationPass<ModuleOp>> {
 
   StringRef getArgument() const final {
     return "sparseflow-rewrite-matmul";
@@ -56,7 +53,6 @@ struct SparseMatmulRewritePass
   void runOnOperation() override {
     ModuleOp module = getOperation();
 
-    // Walk all linalg.matmul operations
     module.walk([&](linalg::MatmulOp matmul) {
       Location loc = matmul.getLoc();
 
@@ -67,14 +63,11 @@ struct SparseMatmulRewritePass
       int N = -1;
       int M = -1;
       if (!extractNMFromType(A.getType(), N, M)) {
-        // No N:M encoding on LHS
         return;
       }
 
-      // Build kernel name
       std::string kernelName = buildKernelName(N, M);
 
-      // Ensure function exists
       func::FuncOp targetFunc = module.lookupSymbol<func::FuncOp>(kernelName);
       if (!targetFunc) {
         OpBuilder modBuilder(module.getBodyRegion());
@@ -92,7 +85,6 @@ struct SparseMatmulRewritePass
         targetFunc.setPrivate();
       }
 
-      // Get dimensions
       auto ATy = mlir::cast<RankedTensorType>(A.getType());
       auto BTy = mlir::cast<RankedTensorType>(B.getType());
 
@@ -106,12 +98,12 @@ struct SparseMatmulRewritePass
       Value Kval = builder.create<arith::ConstantIntOp>(loc, Kdim, 32);
       Value Nval = builder.create<arith::ConstantIntOp>(loc, Ndim, 32);
 
-      // Call sparse kernel
       builder.create<func::CallOp>(
           loc, kernelName, TypeRange{},
           ValueRange{A, B, C, Mval, Kval, Nval});
 
-      matmul.replaceAllUsesWith(C);
+      // FIX: Use getResult(0) since matmul has one result
+      matmul.getResult(0).replaceAllUsesWith(C);
       matmul.erase();
     });
   }
