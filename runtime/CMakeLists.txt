@@ -1,31 +1,37 @@
-cmake_minimum_required(VERSION 3.20)
-project(SparseFlowRuntime LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.10)
+project(SparseFlowRuntime)
+
+find_package(OpenMP REQUIRED)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(OpenMP)
-
+# Runtime library
 add_library(sparseflow_runtime SHARED
     src/sparseflow_runtime.cpp
 )
 
 target_include_directories(sparseflow_runtime PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/include
 )
 
-if(OpenMP_CXX_FOUND)
-    target_link_libraries(sparseflow_runtime PUBLIC OpenMP::OpenMP_CXX)
+target_link_libraries(sparseflow_runtime PRIVATE OpenMP::OpenMP_CXX)
+
+# Test executables (only if files exist)
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/test_nm_runtime.cpp")
+    add_executable(test_nm_runtime tests/test_nm_runtime.cpp)
+    target_link_libraries(test_nm_runtime PRIVATE sparseflow_runtime)
+    target_include_directories(test_nm_runtime PRIVATE ${CMAKE_SOURCE_DIR}/include)
 endif()
 
-add_executable(test_runtime test_runtime.cpp)
-target_link_libraries(test_runtime PRIVATE sparseflow_runtime)
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/test_pattern_validation.cpp")
+    add_executable(test_pattern_validation tests/test_pattern_validation.cpp)
+    target_link_libraries(test_pattern_validation PRIVATE sparseflow_runtime)
+    target_include_directories(test_pattern_validation PRIVATE ${CMAKE_SOURCE_DIR}/include)
+endif()
 
-# N:M pattern test
-add_executable(test_nm_runtime test_nm_runtime.cpp)
-target_link_libraries(test_nm_runtime PRIVATE sparseflow_runtime)
-target_include_directories(test_nm_runtime PRIVATE ${CMAKE_SOURCE_DIR}/include)
-
-# Pattern validation test
-add_executable(test_pattern_validation test_pattern_validation.cpp)
-target_link_libraries(test_pattern_validation PRIVATE sparseflow_runtime)
-target_include_directories(test_pattern_validation PRIVATE ${CMAKE_SOURCE_DIR}/include)
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/benchmark_nm_runtime.cpp")
+    add_executable(benchmark_nm_runtime tests/benchmark_nm_runtime.cpp)
+    target_link_libraries(benchmark_nm_runtime PRIVATE sparseflow_runtime)
+    target_include_directories(benchmark_nm_runtime PRIVATE ${CMAKE_SOURCE_DIR}/include)
+endif()
