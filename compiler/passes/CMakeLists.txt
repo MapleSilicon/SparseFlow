@@ -1,32 +1,32 @@
-cmake_minimum_required(VERSION 3.20)
+# Get all pass source files
+file(GLOB PASS_SOURCES "*.cpp")
 
-find_package(LLVM REQUIRED CONFIG)
-find_package(MLIR REQUIRED CONFIG)
+# Get sparseflow subdirectory sources if it exists
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/sparseflow")
+    file(GLOB SPARSEFLOW_SOURCES "sparseflow/*.cpp")
+    list(APPEND PASS_SOURCES ${SPARSEFLOW_SOURCES})
+endif()
 
-include_directories(${LLVM_INCLUDE_DIRS})
-include_directories(${MLIR_INCLUDE_DIRS})
-
-add_library(SparseFlowPasses MODULE
-  SparseFlowPassPlugin.cpp
-  AnnotateNmPass.cpp
-  ExportMetadataPass.cpp
-  FlopCounterPass.cpp
-  SPAExportPass.cpp
-  sparseflow/SparsityPropagationPass.cpp
-  sparseflow/SPADomain.cpp
-  SparseMatmulRewritePass.cpp
+# Create the plugin library
+add_llvm_library(SparseFlowPasses MODULE
+    ${PASS_SOURCES}
+    PLUGIN_TOOL mlir-opt
 )
 
-target_link_libraries(SparseFlowPasses
-  MLIRIR
-  MLIRPass
-  MLIRFuncDialect
-  MLIRLinalgDialect
-  MLIRSupport
+target_include_directories(SparseFlowPasses PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/sparseflow
 )
 
+target_link_libraries(SparseFlowPasses PRIVATE
+    MLIRIR
+    MLIRPass
+    MLIRSupport
+    MLIRTransforms
+)
+
+# Ensure C++17
 set_target_properties(SparseFlowPasses PROPERTIES
-  PREFIX ""
-  SUFFIX ".so"
-  LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/passes"
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
 )
