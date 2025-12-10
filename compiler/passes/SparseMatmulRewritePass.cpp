@@ -41,11 +41,11 @@ static std::string buildKernelName(int N, int M) {
 struct SparseMatmulRewritePass
     : public PassWrapper<SparseMatmulRewritePass, OperationPass<ModuleOp>> {
 
-  StringRef getArgument() const final {
+  StringRef getArgument() const override {
     return "sparseflow-rewrite-matmul";
   }
 
-  StringRef getDescription() const final {
+  StringRef getDescription() const override {
     return "Rewrite linalg.matmul ops with N:M-encoded LHS into SparseFlow runtime calls";
   }
 
