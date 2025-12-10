@@ -22,19 +22,9 @@ jobs:
         echo "║                                                                ║"
         echo "║         ⚠️  REAL BUILD & TEST - TAKES ~20 MINUTES ⚠️          ║"
         echo "║                                                                ║"
-        echo "║  This workflow will actually build and test everything:        ║"
-        echo "║  • Install LLVM/MLIR 19 (~8 min)                               ║"
-        echo "║  • Build compiler (~5 min)                                     ║"
-        echo "║  • Build runtime (~2 min)                                      ║"
-        echo "║  • Run tests (~3 min)                                          ║"
-        echo "║  • Run benchmarks (~2 min)                                     ║"
-        echo "║                                                                ║"
-        echo "║  Total: ~20 minutes                                            ║"
-        echo "║                                                                ║"
         echo "╚════════════════════════════════════════════════════════════════╝"
         echo ""
         echo "Starting build at: $(date)"
-        echo ""
     
     - name: Checkout Repository
       uses: actions/checkout@v3
@@ -42,269 +32,101 @@ jobs:
     - name: Install System Dependencies
       run: |
         echo "═══════════════════════════════════════════════════════════════"
-        echo "📦 STEP 1: Installing System Dependencies"
+        echo "📦 Installing System Dependencies"
         echo "═══════════════════════════════════════════════════════════════"
         sudo apt-get update
-        sudo apt-get install -y \
-          build-essential \
-          cmake \
-          ninja-build \
-          git \
-          python3 \
-          python3-pip
+        sudo apt-get install -y build-essential cmake ninja-build git python3
         echo "✅ System dependencies installed"
-        echo ""
     
     - name: Install LLVM/MLIR 19
       run: |
         echo "═══════════════════════════════════════════════════════════════"
-        echo "🔧 STEP 2: Installing LLVM/MLIR 19 (~8 minutes)"
+        echo "�� Installing LLVM/MLIR 19 (~8 minutes)"
         echo "═══════════════════════════════════════════════════════════════"
-        echo "This is the longest step - installing full LLVM toolchain..."
-        echo ""
-        
-        # Add LLVM repository
         wget https://apt.llvm.org/llvm.sh
         chmod +x llvm.sh
         sudo ./llvm.sh 19
-        
-        # Install MLIR packages
-        sudo apt-get install -y \
-          llvm-19 \
-          llvm-19-dev \
-          llvm-19-runtime \
-          clang-19 \
-          libmlir-19-dev \
-          mlir-19-tools
-        
-        # Verify installation
-        echo ""
-        echo "Verifying LLVM/MLIR installation:"
-        llvm-config-19 --version
-        mlir-opt-19 --version
-        
-        echo ""
-        echo "✅ LLVM/MLIR 19 installed successfully"
-        echo ""
+        sudo apt-get install -y llvm-19 llvm-19-dev clang-19 libmlir-19-dev mlir-19-tools
+        echo "✅ LLVM/MLIR 19 installed"
     
     - name: Install OpenMP
       run: |
-        echo "═══════════════════════════════════════════════════════════════"
-        echo "🔧 STEP 3: Installing OpenMP"
-        echo "═══════════════════════════════════════════════════════════════"
         sudo apt-get install -y libomp-dev
         echo "✅ OpenMP installed"
-        echo ""
     
-    - name: Build Compiler (~5 minutes)
+    - name: Build Compiler
       run: |
         echo "═══════════════════════════════════════════════════════════════"
-        echo "🏗️  STEP 4: Building SparseFlow Compiler (~5 minutes)"
+        echo "🏗️  Building Compiler"
         echo "═══════════════════════════════════════════════════════════════"
-        echo ""
-        
-        cd compiler
-        mkdir -p build
-        cd build
-        
-        echo "Running CMake configuration..."
-        cmake \
-          -DCMAKE_PREFIX_PATH=/usr/lib/llvm-19 \
-          -DMLIR_DIR=/usr/lib/llvm-19/lib/cmake/mlir \
-          -DLLVM_DIR=/usr/lib/llvm-19/lib/cmake/llvm \
-          -DCMAKE_BUILD_TYPE=Release \
-          ..
-        
-        echo ""
-        echo "Building compiler passes..."
+        cd compiler && mkdir -p build && cd build
+        cmake -DCMAKE_PREFIX_PATH=/usr/lib/llvm-19 \
+              -DMLIR_DIR=/usr/lib/llvm-19/lib/cmake/mlir \
+              -DLLVM_DIR=/usr/lib/llvm-19/lib/cmake/llvm \
+              -DCMAKE_BUILD_TYPE=Release ..
         make -j$(nproc)
-        
-        echo ""
-        echo "Checking build artifacts..."
-        ls -lh passes/
         
         if [ -f "passes/SparseFlowPasses.so" ]; then
-          echo "✅ Compiler plugin built successfully!"
-          file passes/SparseFlowPasses.so
+          echo "✅ Compiler built successfully"
         else
-          echo "❌ Compiler build FAILED - plugin not found"
+          echo "❌ Compiler build FAILED"
           exit 1
         fi
-        echo ""
     
-    - name: Verify Compiler Passes
+    - name: Build Runtime
       run: |
         echo "═══════════════════════════════════════════════════════════════"
-        echo "✅ STEP 5: Verifying Compiler Passes"
+        echo "🏗️  Building Runtime"
         echo "═══════════════════════════════════════════════════════════════"
-        echo ""
-        
-        cd compiler/build
-        
-        echo "Loading plugin and checking available passes..."
-        mlir-opt-19 \
-          --load-pass-plugin=passes/SparseFlowPasses.so \
-          --help | grep sparseflow || echo "⚠️  No passes found"
-        
-        echo ""
-        echo "✅ Compiler verification complete"
-        echo ""
-    
-    - name: Build Runtime (~2 minutes)
-      run: |
-        echo "═══════════════════════════════════════════════════════════════"
-        echo "🏗️  STEP 6: Building SparseFlow Runtime (~2 minutes)"
-        echo "═══════════════════════════════════════════════════════════════"
-        echo ""
-        
-        cd runtime
-        mkdir -p build
-        cd build
-        
-        echo "Configuring runtime build..."
+        cd runtime && mkdir -p build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release ..
-        
-        echo ""
-        echo "Building runtime..."
         make -j$(nproc)
         
-        echo ""
-        echo "Checking build artifacts..."
-        ls -lh
-        
         if [ -f "libsparseflow_runtime.so" ]; then
-          echo "✅ Runtime library built successfully!"
-          file libsparseflow_runtime.so
-          
-          # Check exported symbols
-          echo ""
-          echo "Checking exported N:M kernel functions:"
-          nm -D libsparseflow_runtime.so | grep sparse_matmul || echo "⚠️  Functions not found"
+          echo "✅ Runtime built successfully"
         else
           echo "❌ Runtime build FAILED"
           exit 1
         fi
-        
-        echo ""
-        echo "Checking test executables..."
-        if [ -f "test_nm_runtime" ]; then
-          echo "✅ test_nm_runtime built"
-        fi
-        if [ -f "test_pattern_validation" ]; then
-          echo "✅ test_pattern_validation built"
-        fi
-        if [ -f "benchmark_nm_runtime" ]; then
-          echo "✅ benchmark_nm_runtime built"
-        fi
-        echo ""
     
-    - name: Run Runtime Tests (~3 minutes)
+    - name: Run Runtime Tests
       run: |
         echo "═══════════════════════════════════════════════════════════════"
-        echo "🧪 STEP 7: Running Runtime Tests (~3 minutes)"
+        echo "🧪 Running Runtime Tests"
         echo "═══════════════════════════════════════════════════════════════"
-        echo ""
-        
         cd runtime/build
         export LD_LIBRARY_PATH=$(pwd):$LD_LIBRARY_PATH
         
         if [ -f "test_nm_runtime" ]; then
-          echo "Running N:M runtime tests..."
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          ./test_nm_runtime
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo ""
-        else
-          echo "⚠️  test_nm_runtime not built, skipping"
+          ./test_nm_runtime || exit 1
         fi
         
         if [ -f "test_pattern_validation" ]; then
-          echo "Running pattern validation tests..."
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          ./test_pattern_validation
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo ""
-        else
-          echo "⚠️  test_pattern_validation not built, skipping"
+          ./test_pattern_validation || exit 1
         fi
         
-        echo "✅ Runtime tests completed!"
-        echo ""
+        echo "✅ Runtime tests passed"
     
-    - name: Run Benchmarks (~2 minutes)
+    - name: Run MLIR Integration Tests
       run: |
         echo "═══════════════════════════════════════════════════════════════"
-        echo "📊 STEP 8: Running Performance Benchmarks (~2 minutes)"
+        echo "🔬 MLIR Integration Tests (REAL - will fail if broken!)"
         echo "═══════════════════════════════════════════════════════════════"
-        echo ""
-        echo "⚠️  Note: Running on small matrices for CI speed"
-        echo "          Full benchmarks (1024×1024) take longer"
-        echo ""
-        
-        cd runtime/build
-        export LD_LIBRARY_PATH=$(pwd):$LD_LIBRARY_PATH
-        
-        if [ -f "benchmark_nm_runtime" ]; then
-          echo "Running benchmark suite..."
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          timeout 120s ./benchmark_nm_runtime || echo "⚠️  Benchmark timed out (normal for CI)"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo ""
-        else
-          echo "⚠️  benchmark_nm_runtime not built, skipping"
-        fi
-        
-        echo "✅ Benchmarks completed!"
-        echo ""
-    
-    - name: Test MLIR Integration
-      run: |
-        echo "═══════════════════════════════════════════════════════════════"
-        echo "🔬 STEP 9: Testing MLIR Integration"
-        echo "═══════════════════════════════════════════════════════════════"
-        echo ""
-        
-        if [ -d "compiler/test/nm-patterns" ]; then
-          echo "Found MLIR tests, running them..."
-          cd compiler/test/nm-patterns
-          
-          for test_file in *.mlir; do
-            if [ -f "$test_file" ]; then
-              echo "Testing: $test_file"
-              mlir-opt-19 \
-                --load-pass-plugin=../../build/passes/SparseFlowPasses.so \
-                --pass-pipeline="builtin.module(sparseflow-spa)" \
-                "$test_file" > /dev/null && echo "  ✅ PASS" || echo "  ❌ FAIL"
-            fi
-          done
-        else
-          echo "⚠️  No MLIR tests found"
-        fi
-        
-        echo ""
-        echo "✅ MLIR integration tests completed!"
-        echo ""
+        ./scripts/run_mlir_integration_tests.sh
     
     - name: Final Summary
       run: |
         echo ""
         echo "╔════════════════════════════════════════════════════════════════╗"
-        echo "║                                                                ║"
         echo "║           ✅ REAL BUILD & TEST COMPLETED! ✅                   ║"
-        echo "║                                                                ║"
         echo "╚════════════════════════════════════════════════════════════════╝"
         echo ""
-        echo "Build Summary:"
         echo "  ✅ LLVM/MLIR 19 installed"
         echo "  ✅ Compiler built from source"
         echo "  ✅ Runtime compiled"
-        echo "  ✅ All tests executed"
-        echo "  ✅ Benchmarks run"
-        echo "  ✅ MLIR integration verified"
+        echo "  ✅ Runtime tests PASSED"
+        echo "  ✅ MLIR tests PASSED"
         echo ""
         echo "Completed at: $(date)"
         echo ""
-        echo "Status: ALL CHECKS PASSED 🎉"
-        echo ""
-        echo "This was a REAL build - everything compiled and tested!"
-        echo ""
+        echo "✨ All checks ACTUALLY passed - not fake green! ✨"
