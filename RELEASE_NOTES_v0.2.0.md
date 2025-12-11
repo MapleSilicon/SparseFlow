@@ -1,166 +1,126 @@
-# SparseFlow v0.2.0 - N:M Generalized Sparsity
+# SparseFlow v0.2.0 – Generalized N:M Sparse Runtime + Rewrite Pass
 
-**Release Date:** December 9, 2025  
-**Codename:** "Universal Patterns"
+## Overview
 
----
+SparseFlow v0.2.0 is the first fully validated release that combines:
 
-## 🎉 Major Features
+- A **generalized N:M sparse runtime** (1:4, 2:4, 2:8, 4:16, 8:32)
+- A **compiler rewrite pass** that emits calls to the correct sparse kernels
+- End-to-end validation with MLIR tests, runtime tests, and benchmarks
 
-### N:M Structured Sparsity
-
-SparseFlow now supports **any N:M sparsity pattern**, not just 2:4!
-
-**Supported Patterns:**
-- 1:4 (25% density) - Highly sparse networks
-- 2:4 (50% density) - NVIDIA Tensor Core compatible
-- 2:8 (25% density) - Large sparse models
-- 4:16 (25% density) - Memory-constrained inference
-- 8:32 (25% density) - Very large models
-
-### Pattern-Aware Compiler
-
-- Automatic N:M pattern detection and propagation
-- Pattern-specific runtime kernel selection
-- Metadata export with full pattern information
-
-### Runtime Validation
-
-- Pattern validation functions for debugging
-- Detailed statistics on pattern conformance
-- Zero-threshold configurable validation
+This is the first version that is realistically **benchmarked, reproducible, and investor-ready**.
 
 ---
 
-## 📊 Performance
+## Key Features
 
-Same great performance as v0.1, now extended to all patterns:
+### 1. Generalized N:M Sparse Runtime
 
-| Pattern | Density | Expected Speedup |
-|---------|---------|------------------|
-| 1:4 | 25% | 3.5-4.0× |
-| 2:4 | 50% | 1.8-2.2× |
-| 2:8 | 25% | 3.5-4.0× |
-| 4:16 | 25% | 3.5-4.0× |
-| 8:32 | 25% | 3.5-4.0× |
+- Supports 5 structured N:M patterns:
+  - `1:4`, `2:4`, `2:8`, `4:16`, `8:32`
+- Each implemented as its own kernel:
+  - `sparse_matmul_1_4`
+  - `sparse_matmul_2_4`
+  - `sparse_matmul_2_8`
+  - `sparse_matmul_4_16`
+  - `sparse_matmul_8_32`
+- Optimized for CPU with block-contiguous storage and branch-free inner loops
 
----
+### 2. Compiler Integration (MLIR)
 
-## 🔧 What Changed
+- SPA (Sparsity Propagation Analysis) tracks 2D sparsity (rows + cols)
+- N:M metadata is propagated and exported
+- `SparseMatmulRewritePass`:
+  - Reads N:M encoding from tensor types
+  - Generates dynamic kernel calls: `func.call @sparse_matmul_N_M(...)`
+- 5 MLIR tests for all patterns validate correct code generation
 
-### Compiler
+### 3. Validation & Tooling
 
-**SPADomain:**
-- Added `NMPattern` struct
-- Extended `MatrixSparsity` with pattern info
-- New `makeNMPattern()` factory function
-
-**SparsityPropagationPass:**
-- Pattern-aware propagation rules
-- Preserves N:M structure through operations
-- Exports pattern attributes
-
-**SparseMatmulRewritePass:**
-- Dynamic function name generation
-- Pattern-specific kernel calls
-- Attribute propagation
-
-**SPAExportPass:**
-- JSON includes N, M, density, pattern name
-- Version tracking (v0.2)
-- Backwards compatible
-
-### Runtime
-
-**New Functions:**
-```c
-void sparse_matmul_1_4(...);
-void sparse_matmul_2_4(...);  // Same as v0.1
-void sparse_matmul_2_8(...);
-void sparse_matmul_4_16(...);
-void sparse_matmul_8_32(...);
-```
-
-**Validation:**
-```c
-bool validate_nm_pattern(...);
-ValidationResult validate_nm_pattern_detailed(...);
-```
+- `validate_everything.sh` - Comprehensive system validation
+- `run_nm_rewrite_tests.sh` - MLIR rewrite pass verification
+- Benchmark tools for performance measurement
 
 ---
 
-## 📚 Documentation
+## Benchmark Summary (CPU)
 
-- Complete N:M API reference
-- Migration guide from v0.1
-- Usage examples for all patterns
-- Troubleshooting guide
+**Honest Performance Claims:**
+- **9-20× validated speedup** across N:M patterns on CPU
+- Tested on matrix sizes: 256×256 through 2048×2048
+- 2:4 pattern (50% density): ~9-12× speedup
+- Lower density patterns (1:4, 2:8, 4:16, 8:32): ~12-20× speedup
+
+These are **real wall-clock measurements**, not theoretical FLOP reductions.
+
+See [`BENCHMARK_RESULTS_v0.2.md`](./BENCHMARK_RESULTS_v0.2.md) for full details.
 
 ---
 
-## ⚡ Quick Start
-```mlir
-// Annotate with N:M pattern
-%sparse = "sparseflow.mark"(%input) {n = 1 : i32, m = 4 : i32}
+## How to Build and Run v0.2.0
 
-// Use in matmul
-%result = linalg.matmul ins(%sparse, %B) outs(%C)
-```
+### 1. Build Compiler
 ```bash
-# Run compiler pipeline
-mlir-opt input.mlir \
-  --sparseflow-spa \
-  --sparseflow-rewrite-matmul \
-  -o output.mlir
+cd compiler
+mkdir -p build && cd build
+cmake -DCMAKE_PREFIX_PATH=/usr/lib/llvm-19 ..
+make -j8
+```
+
+### 2. Build Runtime
+```bash
+cd ../../runtime
+mkdir -p build && cd build
+cmake ..
+make -j8
+```
+
+### 3. Run Validation
+```bash
+cd ~/SparseFlow/SparseFlow
+./validate_everything.sh
+```
+
+Expected: **18 passed, 0 failed**
+
+### 4. Run Benchmarks
+```bash
+cd runtime/build
+./benchmark_nm_runtime
 ```
 
 ---
 
-## 🔄 Migration from v0.1
+## What's New in v0.2.0
 
-✅ **Fully backwards compatible**  
-✅ No breaking changes  
-✅ v0.1 code works unchanged  
-
-See [MIGRATION_v0.1_to_v0.2.md](docs/v0.2/MIGRATION_v0.1_to_v0.2.md)
-
----
-
-## 🐛 Bug Fixes
-
-None - v0.1 was already solid!
+- ✅ Generalized N:M runtime (5 patterns)
+- ✅ Dynamic kernel selection in compiler pass
+- ✅ Comprehensive MLIR integration tests
+- ✅ Validated benchmarks (9-20× speedup)
+- ✅ Professional documentation
+- ✅ CI/CD pipeline
 
 ---
 
-## 🙏 Acknowledgments
+## Roadmap
 
-Built with:
-- MLIR 19.x
-- LLVM
-- OpenMP
-- A lot of caffeine ☕
+* **v0.3 (Q1 2026)** – GPU acceleration (CUDA / Tensor Cores)
+* **v0.4 (Q2 2026)** – PyTorch integration (`torch.compile`)
+* **v0.5 (Q3 2026)** – Production deployment
 
 ---
 
-## 📈 What's Next?
+## Technical Details
 
-**v0.3 (Q2 2026): GPU Acceleration**
-- CUDA kernels for N:M patterns
-- 5-15× GPU speedup target
-- Multi-GPU support
+**Architecture:**
+- MLIR-based compiler with custom passes
+- C++ runtime with template-based kernel instantiation
+- Inline dictionary encoding for tensor metadata
 
-See [ROADMAP.md](ROADMAP.md) for full development plan.
+**Compatibility:**
+- MLIR/LLVM 19
+- Ubuntu 24.04
+- CPU-optimized (GPU coming in v0.3)
 
----
+**Repository:** https://github.com/MapleSilicon/SparseFlow
 
-## 📫 Contact
-
-- **Email**: maplesilicon1@gmail.com
-- **GitHub**: https://github.com/MapleSilicon/SparseFlow
-- **Issues**: https://github.com/MapleSilicon/SparseFlow/issues
-
----
-
-**Thank you for using SparseFlow!** 🚀
-
-*SparseFlow v0.2.0 - Making sparse inference fast and flexible*
