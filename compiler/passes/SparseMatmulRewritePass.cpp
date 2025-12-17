@@ -116,3 +116,10 @@ std::unique_ptr<Pass> createSparseMatmulRewritePass() {
 } // namespace mlir
 
 static PassRegistration<SparseMatmulRewritePass> pass;
+
+// Registration function for the pass plugin
+void registerSparseMatmulRewritePass() {
+  mlir::registerPass([]() -> std::unique_ptr<mlir::Pass> {
+    return std::make_unique<SparseMatmulRewritePass>();
+  });
+}

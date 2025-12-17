@@ -32,6 +32,3 @@ target_link_libraries(benchmark_nm_runtime PRIVATE sparseflow_runtime)
 target_include_directories(benchmark_nm_runtime PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
 # Re-test binary for stability checking
-add_executable(retest_8_32 tests/retest_8_32.cpp)
-target_link_libraries(retest_8_32 PRIVATE sparseflow_runtime)
-target_include_directories(retest_8_32 PRIVATE ${CMAKE_SOURCE_DIR}/include)
