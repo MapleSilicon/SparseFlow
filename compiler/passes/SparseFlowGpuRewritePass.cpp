@@ -2,6 +2,9 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/GPU/IR/GPUDialect.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Bufferization/IR/Bufferization.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/Pass/Pass.h"
 
@@ -40,6 +43,7 @@ struct SparseFlowGpuRewritePass
       OpBuilder builder(call);
       Location loc = call.getLoc();
 
+      // Simple stub for v0.3-alpha
       auto c1 = builder.create<arith::ConstantIndexOp>(loc, 1);
 
       auto launch = builder.create<gpu::LaunchOp>(
