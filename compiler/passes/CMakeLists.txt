@@ -23,6 +23,14 @@ target_link_libraries(SparseFlowPasses PRIVATE
     MLIRPass
     MLIRSupport
     MLIRTransforms
+    MLIRFuncDialect
+    MLIRArithDialect
+    MLIRLinalgDialect
+    MLIRTensorDialect
+    MLIRGPUDialect
+    MLIRMemRefDialect
+    MLIRBufferizationDialect
+    MLIRBufferizationTransforms
 )
 
 # Ensure C++17

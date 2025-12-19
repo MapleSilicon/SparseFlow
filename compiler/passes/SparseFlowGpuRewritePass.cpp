@@ -1,24 +1,26 @@
+#include "mlir/IR/BuiltinOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/GPU/IR/GPUDialect.h"
-#include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
-#include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/Pass/Pass.h"
-#include "mlir/Support/LogicalResult.h"
 
 using namespace mlir;
 
 namespace {
 
 struct SparseFlowGpuRewritePass
-    : public PassWrapper<SparseFlowGpuRewritePass, OperationPass<ModuleOp>> {
+    : public PassWrapper<SparseFlowGpuRewritePass,
+                         OperationPass<ModuleOp>> {
 
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(SparseFlowGpuRewritePass)
 
-  StringRef getArgument() const override { return "sparseflow-gpu-rewrite"; }
+  StringRef getArgument() const override {
+    return "sparseflow-gpu-rewrite";
+  }
+
   StringRef getDescription() const override {
-    return "Lower sparseflow CPU calls to GPU (v0.3)";
+    return "Lower SparseFlow runtime calls to GPU launch (v0.3-alpha)";
   }
 
   void runOnOperation() override {
@@ -26,12 +28,12 @@ struct SparseFlowGpuRewritePass
     MLIRContext *ctx = module.getContext();
     ctx->loadDialect<gpu::GPUDialect>();
 
-    ensureGpuModuleAndKernel(module);
+    ensureGpuModule(module);
 
     SmallVector<func::CallOp> callsToErase;
 
     module.walk([&](func::CallOp call) {
-      auto callee = call.getCallee();
+      StringRef callee = call.getCallee();
       if (!callee.starts_with("sparse_matmul"))
         return;
 
@@ -45,9 +47,11 @@ struct SparseFlowGpuRewritePass
           c1, c1, c1,
           c1, c1, c1);
 
-      Block &body = launch.getBody().front();
-      OpBuilder bodyBuilder(&body, body.begin());
-      bodyBuilder.create<gpu::TerminatorOp>(loc);
+      {
+        Block &body = launch.getBody().front();
+        OpBuilder bodyBuilder(&body, body.begin());
+        bodyBuilder.create<gpu::TerminatorOp>(loc);
+      }
 
       callsToErase.push_back(call);
     });
@@ -56,53 +60,43 @@ struct SparseFlowGpuRewritePass
       call.erase();
   }
 
-  void ensureGpuModuleAndKernel(ModuleOp module) {
-    // Check if already exists
+  void ensureGpuModule(ModuleOp module) {
     if (module.lookupSymbol<gpu::GPUModuleOp>("sf_gpu"))
       return;
 
-    OpBuilder builder = OpBuilder::atBlockEnd(module.getBody());
-    Location loc = builder.getUnknownLoc();
-    
-    auto gpuMod = builder.create<gpu::GPUModuleOp>(loc, "sf_gpu");
-    Block *modBlock = gpuMod.getBody();
-    
-    // Check if module_end already exists (it might)
-    bool hasEnd = false;
-    for (auto &op : *modBlock) {
-      if (isa<gpu::ModuleEndOp>(op)) {
-        hasEnd = true;
-        break;
-      }
-    }
-    
-    // Add kernel before any existing module_end
-    OpBuilder modBuilder(modBlock, hasEnd ? std::prev(modBlock->end()) : modBlock->end());
-    
-    auto funcType = builder.getFunctionType(TypeRange{}, TypeRange{});
-    auto gpuFunc = modBuilder.create<gpu::GPUFuncOp>(
-        loc, "kernel", funcType, TypeRange{}, TypeRange{});
-    
-    gpuFunc->setAttr(gpu::GPUDialect::getKernelFuncAttrName(),
-                     builder.getUnitAttr());
-    
-    Block &entry = gpuFunc.getBody().front();
-    OpBuilder funcBuilder = OpBuilder::atBlockEnd(&entry);
-    funcBuilder.create<gpu::ReturnOp>(loc);
-    
-    // Only add module_end if it doesn't exist
-    if (!hasEnd) {
-      modBuilder.setInsertionPointToEnd(modBlock);
-      modBuilder.create<gpu::ModuleEndOp>(loc);
-    }
+    OpBuilder builder(module.getBodyRegion());
+    auto gpuModule =
+        builder.create<gpu::GPUModuleOp>(
+            builder.getUnknownLoc(), "sf_gpu");
+
+    Block *block = gpuModule.getBody();
+    OpBuilder modBuilder(block->getTerminator());
+
+    auto fnType = modBuilder.getFunctionType({}, {});
+    auto kernel = modBuilder.create<gpu::GPUFuncOp>(
+        modBuilder.getUnknownLoc(),
+        "kernel",
+        fnType,
+        TypeRange{},
+        TypeRange{});
+
+    kernel->setAttr(
+        gpu::GPUDialect::getKernelFuncAttrName(),
+        modBuilder.getUnitAttr());
+
+    Block &entry = kernel.getBody().front();
+    OpBuilder bodyBuilder(&entry, entry.begin());
+    bodyBuilder.create<gpu::ReturnOp>(modBuilder.getUnknownLoc());
   }
 };
 
 } // namespace
 
+namespace mlir {
 std::unique_ptr<Pass> createSparseFlowGpuRewritePass() {
   return std::make_unique<SparseFlowGpuRewritePass>();
 }
+} // namespace mlir
 
 void registerSparseFlowGpuRewritePass() {
   mlir::PassRegistration<SparseFlowGpuRewritePass>();
