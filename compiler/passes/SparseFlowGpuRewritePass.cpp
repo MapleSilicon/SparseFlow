@@ -3,8 +3,8 @@
 #include "mlir/Dialect/GPU/IR/GPUDialect.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
-#include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/Pass/Pass.h"
 
@@ -23,13 +23,16 @@ struct SparseFlowGpuRewritePass
   }
 
   StringRef getDescription() const override {
-    return "Lower SparseFlow runtime calls to GPU launch (v0.3-alpha)";
+    return "Lower SparseFlow runtime calls to GPU (v0.3-alpha, bufferization-ready)";
   }
 
   void runOnOperation() override {
     ModuleOp module = getOperation();
     MLIRContext *ctx = module.getContext();
     ctx->loadDialect<gpu::GPUDialect>();
+    ctx->loadDialect<bufferization::BufferizationDialect>();
+    ctx->loadDialect<tensor::TensorDialect>();
+    ctx->loadDialect<memref::MemRefDialect>();
 
     ensureGpuModule(module);
 
@@ -43,7 +46,15 @@ struct SparseFlowGpuRewritePass
       OpBuilder builder(call);
       Location loc = call.getLoc();
 
-      // Simple stub for v0.3-alpha
+      // v0.4-prep: materialize memrefs (strips tensor encoding)
+      SmallVector<Value, 8> memrefArgs;
+      memrefArgs.reserve(call.getNumOperands());
+
+      for (Value v : call.getOperands()) {
+        memrefArgs.push_back(toMemrefDroppingEncoding(builder, loc, v));
+      }
+
+      // v0.3-alpha: still emit gpu.launch stub
       auto c1 = builder.create<arith::ConstantIndexOp>(loc, 1);
 
       auto launch = builder.create<gpu::LaunchOp>(
@@ -62,6 +73,32 @@ struct SparseFlowGpuRewritePass
 
     for (auto call : callsToErase)
       call.erase();
+  }
+
+  // Convert tensor -> memref safely even if tensor has encoding ({n,m}).
+  // Step 1: tensor.cast to unencoded tensor
+  // Step 2: bufferization.to_memref
+  Value toMemrefDroppingEncoding(OpBuilder &b, Location loc, Value tensorVal) {
+    auto t = llvm::dyn_cast<TensorType>(tensorVal.getType());
+    if (!t)
+      return tensorVal; // already memref or scalar
+
+    auto ranked = llvm::dyn_cast<RankedTensorType>(t);
+    if (!ranked)
+      return tensorVal; // unranked
+
+    // Drop encoding via tensor.cast
+    RankedTensorType plainTensor =
+        RankedTensorType::get(ranked.getShape(), ranked.getElementType());
+
+    Value plain = tensorVal;
+    if (ranked != plainTensor) {
+      plain = b.create<tensor::CastOp>(loc, plainTensor, tensorVal);
+    }
+
+    // Now convert to memref
+    auto memrefTy = MemRefType::get(ranked.getShape(), ranked.getElementType());
+    return b.create<bufferization::ToMemrefOp>(loc, memrefTy, plain);
   }
 
   void ensureGpuModule(ModuleOp module) {
