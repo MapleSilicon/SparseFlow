@@ -24,7 +24,7 @@ struct SparseFlowGpuRewritePass
   }
 
   StringRef getDescription() const override {
-    return "Lower SparseFlow to GPU with rowMask generation (v0.4 corrected)";
+    return "Lower SparseFlow to GPU with ABI-locked kernel (v0.4.1)";
   }
 
   void runOnOperation() override {
@@ -36,7 +36,7 @@ struct SparseFlowGpuRewritePass
     ctx->loadDialect<memref::MemRefDialect>();
     ctx->loadDialect<scf::SCFDialect>();
 
-    ensureGpuModule(module);
+    ensureGpuModuleWithABI(module);
 
     SmallVector<func::CallOp> callsToErase;
 
@@ -45,7 +45,6 @@ struct SparseFlowGpuRewritePass
       if (!callee.starts_with("sparse_matmul"))
         return;
 
-      // ❌ ISSUE 4 FIX: Guard against GPU-side generation
       if (call->getParentOfType<gpu::GPUModuleOp>()) {
         call.emitError("RowMask generation must be host-side");
         signalPassFailure();
@@ -63,17 +62,16 @@ struct SparseFlowGpuRewritePass
         memrefArgs.push_back(toMemrefDroppingEncoding(builder, loc, v));
       }
 
-      // ---- Step 1: Constants ----
+      // Constants
       auto c0  = builder.create<arith::ConstantIndexOp>(loc, 0);
       auto c1  = builder.create<arith::ConstantIndexOp>(loc, 1);
       auto c31 = builder.create<arith::ConstantIntOp>(loc, 31, 32);
       auto c32 = builder.create<arith::ConstantIntOp>(loc, 32, 32);
 
-      // ---- Step 2: Extract N:M from encoding ----
+      // Extract N:M from encoding
       auto A = call.getOperand(0);
       auto tensorType = llvm::cast<RankedTensorType>(A.getType());
       
-      // ❌ ISSUE 2 FIX: Extract n,m from encoding
       auto encoding = tensorType.getEncoding();
       if (!encoding) {
         call.emitError("Tensor must have N:M encoding");
@@ -91,7 +89,7 @@ struct SparseFlowGpuRewritePass
       auto nAttr = dictAttr.get("n");
       auto mAttr = dictAttr.get("m");
       if (!nAttr || !mAttr) {
-        call.emitError("Encoding must contain 'n' and 'm' attributes");
+        call.emitError("Encoding must contain 'n' and 'm'");
         signalPassFailure();
         return;
       }
@@ -105,32 +103,32 @@ struct SparseFlowGpuRewritePass
         return;
       }
 
-      // Compute row count
+      // Compute dimensions
       int64_t rows = tensorType.getShape()[0];
-      auto rowsVal = builder.create<arith::ConstantIntOp>(loc, rows, 32);
+      int64_t cols = tensorType.getShape()[1];
+      
+      auto M = builder.create<arith::ConstantIntOp>(loc, rows, 32);
+      auto N = builder.create<arith::ConstantIntOp>(loc, cols, 32);
+      auto K = M; // Square matrix assumption
 
-      // ❌ ISSUE 1 FIX: Correct ceil division
-      // words = (rows + 31) / 32
+      // Allocate rowMask with ceil division
+      auto rowsVal = builder.create<arith::ConstantIntOp>(loc, rows, 32);
       auto rowsPlus31 = builder.create<arith::AddIOp>(loc, rowsVal, c31);
       auto words = builder.create<arith::DivUIOp>(loc, rowsPlus31, c32);
-      
       auto wordsIndex = builder.create<arith::IndexCastOp>(
           loc, builder.getIndexType(), words);
 
-      // ---- Step 3: Allocate rowMask ----
       auto rowMaskType =
           MemRefType::get({ShapedType::kDynamic}, builder.getI32Type());
 
       auto rowMaskOp =
           builder.create<memref::AllocOp>(loc, rowMaskType, ValueRange{wordsIndex});
 
-      // ❌ ISSUE 2 FIX: Generate pattern from n,m
-      // For N=2, M=4: pattern = 0b0011 = (1 << 2) - 1 = 3
+      // Fill mask
       uint32_t maskValue = (1u << n) - 1;
       auto pattern =
           builder.create<arith::ConstantIntOp>(loc, maskValue, 32);
 
-      // ---- Step 4: Fill mask ----
       builder.create<scf::ForOp>(
           loc, c0, wordsIndex, c1, ValueRange{},
           [&](OpBuilder &b, Location loc, Value iv, ValueRange) {
@@ -138,15 +136,15 @@ struct SparseFlowGpuRewritePass
             b.create<scf::YieldOp>(loc);
           });
 
-      // ❌ ISSUE 3 FIX: Mark rowMask as observable
-      rowMaskOp->setAttr(
-          "sparseflow.rowmask", builder.getUnitAttr());
+      rowMaskOp->setAttr("sparseflow.rowmask", builder.getUnitAttr());
 
-      // ---- Step 5: Create gpu.launch ----
+      // Create gpu.launch (stub - no args wired yet)
+      auto launchC1 = builder.create<arith::ConstantIndexOp>(loc, 1);
+
       auto launch = builder.create<gpu::LaunchOp>(
           loc,
-          c1, c1, c1,
-          c1, c1, c1);
+          launchC1, launchC1, launchC1,
+          launchC1, launchC1, launchC1);
 
       {
         Block &body = launch.getBody().front();
@@ -182,22 +180,42 @@ struct SparseFlowGpuRewritePass
     return b.create<bufferization::ToMemrefOp>(loc, memrefTy, plain);
   }
 
-  void ensureGpuModule(ModuleOp module) {
+  void ensureGpuModuleWithABI(ModuleOp module) {
     if (module.lookupSymbol<gpu::GPUModuleOp>("sf_gpu"))
       return;
 
     OpBuilder builder(module.getBodyRegion());
-    auto gpuModule =
-        builder.create<gpu::GPUModuleOp>(
-            builder.getUnknownLoc(), "sf_gpu");
+    Location loc = builder.getUnknownLoc();
+    
+    auto gpuModule = builder.create<gpu::GPUModuleOp>(loc, "sf_gpu");
 
     Block *block = gpuModule.getBody();
     OpBuilder modBuilder(block->getTerminator());
 
-    auto fnType = modBuilder.getFunctionType({}, {});
+    // ABI-locked kernel signature
+    auto f32 = modBuilder.getF32Type();
+    auto i32 = modBuilder.getI32Type();
+    
+    // memref<?x?xf32> for A, B, C
+    auto memrefDynF32 = MemRefType::get({ShapedType::kDynamic, ShapedType::kDynamic}, f32);
+    // memref<?xi32> for rowMask
+    auto memrefDynI32 = MemRefType::get({ShapedType::kDynamic}, i32);
+
+    SmallVector<Type> argTypes = {
+      memrefDynF32,  // A
+      memrefDynF32,  // B
+      memrefDynF32,  // C
+      memrefDynI32,  // rowMask
+      i32,           // M
+      i32,           // N
+      i32            // K
+    };
+
+    auto fnType = modBuilder.getFunctionType(argTypes, TypeRange{});
+    
     auto kernel = modBuilder.create<gpu::GPUFuncOp>(
-        modBuilder.getUnknownLoc(),
-        "kernel",
+        loc,
+        "sparseflow_gpu_matmul_2_4_f32",  // ABI name!
         fnType,
         TypeRange{},
         TypeRange{});
@@ -208,7 +226,7 @@ struct SparseFlowGpuRewritePass
 
     Block &entry = kernel.getBody().front();
     OpBuilder bodyBuilder(&entry, entry.begin());
-    bodyBuilder.create<gpu::ReturnOp>(modBuilder.getUnknownLoc());
+    bodyBuilder.create<gpu::ReturnOp>(loc);
   }
 };
 
