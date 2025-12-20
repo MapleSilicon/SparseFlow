@@ -24,7 +24,7 @@ struct SparseFlowGpuRewritePass
   }
 
   StringRef getDescription() const override {
-    return "SparseFlow GPU kernel (v0.6 warp accumulation)";
+    return "SparseFlow GPU kernel (v0.7 tiled shared-memory)";
   }
 
   std::unique_ptr<Pass> clonePass() const override {
@@ -92,7 +92,7 @@ struct SparseFlowGpuRewritePass
       int64_t m = llvm::cast<IntegerAttr>(mAttr).getInt();
 
       if (n != 2 || m != 4) {
-        call.emitError("v0.6 supports only 2:4 sparsity");
+        call.emitError("v0.7 supports only 2:4 sparsity");
         signalPassFailure();
         return;
       }
@@ -177,10 +177,10 @@ struct SparseFlowGpuRewritePass
     Block *block = gpuModule.getBody();
     OpBuilder modBuilder(block->getTerminator());
 
-    buildV06WarpKernel(modBuilder, loc);
+    buildV07TiledKernel(modBuilder, loc);
   }
 
-  void buildV06WarpKernel(OpBuilder &builder, Location loc) {
+  void buildV07TiledKernel(OpBuilder &builder, Location loc) {
     auto f32 = builder.getF32Type();
     auto i32 = builder.getI32Type();
     auto index = builder.getIndexType();
@@ -249,45 +249,83 @@ struct SparseFlowGpuRewritePass
       auto isActive = thenB.create<arith::CmpIOp>(thenLoc, arith::CmpIPredicate::ne, bit, c0_i32);
       
       thenB.create<scf::IfOp>(thenLoc, isActive, [&](OpBuilder &activeB, Location activeLoc) {
-        auto NIdx = activeB.create<arith::IndexCastOp>(activeLoc, index, N);
         auto KIdx = activeB.create<arith::IndexCastOp>(activeLoc, index, K);
         
-        // Loop over output columns
-        activeB.create<scf::ForOp>(
-            activeLoc, c0, NIdx, c1, ValueRange{},
-            [&](OpBuilder &jB, Location jLoc, Value j, ValueRange) {
+        // SHARED MEMORY ALLOCATION (addrspace 3)
+        auto sharedSpace = IntegerAttr::get(IntegerType::get(activeB.getContext(), 64), 3);
+        auto sharedAType = MemRefType::get({32, 32}, f32, MemRefLayoutAttrInterface(), sharedSpace);
+        auto sharedBType = MemRefType::get({32, 32}, f32, MemRefLayoutAttrInterface(), sharedSpace);
+        
+        auto sharedA = activeB.create<memref::AllocaOp>(activeLoc, sharedAType);
+        auto sharedB = activeB.create<memref::AllocaOp>(activeLoc, sharedBType);
+        
+        // Accumulator (across all K-tiles)
+        auto c0_f32_local = activeB.create<arith::ConstantFloatOp>(activeLoc, APFloat(0.0f), f32);
+        
+        // K-TILE LOOP
+        auto finalAcc = activeB.create<scf::ForOp>(
+            activeLoc, c0, KIdx, c32_idx, ValueRange{c0_f32_local.getResult()},
+            [&](OpBuilder &k0B, Location k0Loc, Value k0, ValueRange iterArgs) {
+              Value currentAcc = iterArgs[0];
               
-              // WARP ACCUMULATION: Each lane does K/32 elements
-              auto partialSum = jB.create<scf::ForOp>(
-                  jLoc, laneIdIdx, KIdx, c32_idx, ValueRange{c0_f32.getResult()},
-                  [&](OpBuilder &kB, Location kLoc, Value k, ValueRange iterArgs) {
-                    auto aVal = kB.create<memref::LoadOp>(kLoc, A, ValueRange{globalRow, k});
-                    auto bVal = kB.create<memref::LoadOp>(kLoc, B, ValueRange{k, j});
+              // LOAD A TILE (only if active)
+              k0B.create<scf::ForOp>(
+                  k0Loc, c0, c32_idx, c1, ValueRange{},
+                  [&](OpBuilder &kB, Location kLoc, Value k, ValueRange) {
+                    auto kGlobal = kB.create<arith::AddIOp>(kLoc, k0, k);
+                    auto aVal = kB.create<memref::LoadOp>(kLoc, A, ValueRange{globalRow, kGlobal});
+                    kB.create<memref::StoreOp>(kLoc, aVal, sharedA, ValueRange{laneIdIdx, k});
+                    kB.create<scf::YieldOp>(kLoc);
+                  });
+              
+              // LOAD B TILE (all lanes)
+              k0B.create<scf::ForOp>(
+                  k0Loc, c0, c32_idx, c1, ValueRange{},
+                  [&](OpBuilder &kB, Location kLoc, Value k, ValueRange) {
+                    auto kGlobal = kB.create<arith::AddIOp>(kLoc, k0, k);
+                    auto bVal = kB.create<memref::LoadOp>(kLoc, B, ValueRange{kGlobal, laneIdIdx});
+                    kB.create<memref::StoreOp>(kLoc, bVal, sharedB, ValueRange{k, laneIdIdx});
+                    kB.create<scf::YieldOp>(kLoc);
+                  });
+              
+              // BARRIER #1 (wait for loads)
+              k0B.create<gpu::BarrierOp>(k0Loc);
+              
+              // COMPUTE from shared memory (warp reduction)
+              auto partialSum = k0B.create<scf::ForOp>(
+                  k0Loc, laneIdIdx, c32_idx, c32_idx, ValueRange{c0_f32_local.getResult()},
+                  [&](OpBuilder &kB, Location kLoc, Value k, ValueRange dotArgs) {
+                    auto aVal = kB.create<memref::LoadOp>(kLoc, sharedA, ValueRange{laneIdIdx, k});
+                    auto bVal = kB.create<memref::LoadOp>(kLoc, sharedB, ValueRange{k, laneIdIdx});
                     auto mul = kB.create<arith::MulFOp>(kLoc, aVal, bVal);
-                    auto sum = kB.create<arith::AddFOp>(kLoc, iterArgs[0], mul);
+                    auto sum = kB.create<arith::AddFOp>(kLoc, dotArgs[0], mul);
                     kB.create<scf::YieldOp>(kLoc, sum.getResult());
                   });
               
-              // WARP REDUCTION: 5 shuffle steps (log2(32) = 5)
+              // WARP REDUCTION (5 shuffles)
               Value reduced = partialSum.getResult(0);
-              
-              // offset = 16, 8, 4, 2, 1
               for (int offset = 16; offset >= 1; offset /= 2) {
-                auto offsetVal = jB.create<arith::ConstantIntOp>(jLoc, offset, 32);
-                auto shuffled = jB.create<gpu::ShuffleOp>(
-                    jLoc, reduced, offsetVal, c32_i32, gpu::ShuffleMode::XOR);
-                reduced = jB.create<arith::AddFOp>(jLoc, reduced, shuffled.getShuffleResult());
+                auto offsetVal = k0B.create<arith::ConstantIntOp>(k0Loc, offset, 32);
+                auto shuffled = k0B.create<gpu::ShuffleOp>(
+                    k0Loc, reduced, offsetVal, c32_i32, gpu::ShuffleMode::XOR);
+                reduced = k0B.create<arith::AddFOp>(k0Loc, reduced, shuffled.getShuffleResult());
               }
               
-              // SINGLE WRITER: Only lane 0 writes result
-              auto isLane0 = jB.create<arith::CmpIOp>(jLoc, arith::CmpIPredicate::eq, laneId, c0_i32);
-              jB.create<scf::IfOp>(jLoc, isLane0, [&](OpBuilder &writeB, Location writeLoc) {
-                writeB.create<memref::StoreOp>(writeLoc, reduced, C, ValueRange{globalRow, j});
-                writeB.create<scf::YieldOp>(writeLoc);
-              });
+              // Accumulate across K-tiles
+              auto newAcc = k0B.create<arith::AddFOp>(k0Loc, currentAcc, reduced);
               
-              jB.create<scf::YieldOp>(jLoc);
+              // BARRIER #2 (wait for reads before next tile)
+              k0B.create<gpu::BarrierOp>(k0Loc);
+              
+              k0B.create<scf::YieldOp>(k0Loc, newAcc.getResult());
             });
+        
+        // SINGLE WRITER: Lane 0 writes final result
+        auto isLane0 = activeB.create<arith::CmpIOp>(activeLoc, arith::CmpIPredicate::eq, laneId, c0_i32);
+        activeB.create<scf::IfOp>(activeLoc, isLane0, [&](OpBuilder &writeB, Location writeLoc) {
+          writeB.create<memref::StoreOp>(writeLoc, finalAcc.getResult(0), C, ValueRange{globalRow, laneIdIdx});
+          writeB.create<scf::YieldOp>(writeLoc);
+        });
         
         activeB.create<scf::YieldOp>(activeLoc);
       });
