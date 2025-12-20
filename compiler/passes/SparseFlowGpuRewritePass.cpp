@@ -24,7 +24,7 @@ struct SparseFlowGpuRewritePass
   }
 
   StringRef getDescription() const override {
-    return "SparseFlow GPU kernel (v0.7 tiled shared-memory)";
+    return "SparseFlow GPU kernel (v0.7 tiled shared-memory with TRUE 32x reuse)";
   }
 
   std::unique_ptr<Pass> clonePass() const override {
@@ -233,7 +233,6 @@ struct SparseFlowGpuRewritePass
     Value C = entry.getArgument(2);
     Value rowMask = entry.getArgument(3);
     Value M = entry.getArgument(4);
-    Value N = entry.getArgument(5);
     Value K = entry.getArgument(6);
     
     auto inBounds = b.create<arith::CmpIOp>(loc, arith::CmpIPredicate::slt, globalRowI32, M);
@@ -259,12 +258,9 @@ struct SparseFlowGpuRewritePass
         auto sharedA = activeB.create<memref::AllocaOp>(activeLoc, sharedAType);
         auto sharedB = activeB.create<memref::AllocaOp>(activeLoc, sharedBType);
         
-        // Accumulator (across all K-tiles)
-        auto c0_f32_local = activeB.create<arith::ConstantFloatOp>(activeLoc, APFloat(0.0f), f32);
-        
         // K-TILE LOOP
         auto finalAcc = activeB.create<scf::ForOp>(
-            activeLoc, c0, KIdx, c32_idx, ValueRange{c0_f32_local.getResult()},
+            activeLoc, c0, KIdx, c32_idx, ValueRange{c0_f32.getResult()},
             [&](OpBuilder &k0B, Location k0Loc, Value k0, ValueRange iterArgs) {
               Value currentAcc = iterArgs[0];
               
@@ -291,9 +287,11 @@ struct SparseFlowGpuRewritePass
               // BARRIER #1 (wait for loads)
               k0B.create<gpu::BarrierOp>(k0Loc);
               
-              // COMPUTE from shared memory (warp reduction)
+              // COMPUTE from shared memory - TRUE 32× REUSE
+              // Each lane iterates k=0..31 (all elements in tile)
               auto partialSum = k0B.create<scf::ForOp>(
-                  k0Loc, laneIdIdx, c32_idx, c32_idx, ValueRange{c0_f32_local.getResult()},
+                  k0Loc, c0, c32_idx, c1, ValueRange{c0_f32.getResult()},
+                  //     ^^ START AT 0   ^^ STEP BY 1 = 32 ITERATIONS!
                   [&](OpBuilder &kB, Location kLoc, Value k, ValueRange dotArgs) {
                     auto aVal = kB.create<memref::LoadOp>(kLoc, sharedA, ValueRange{laneIdIdx, k});
                     auto bVal = kB.create<memref::LoadOp>(kLoc, sharedB, ValueRange{k, laneIdIdx});
