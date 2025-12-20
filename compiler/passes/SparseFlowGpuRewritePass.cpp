@@ -24,7 +24,7 @@ struct SparseFlowGpuRewritePass
   }
 
   StringRef getDescription() const override {
-    return "SparseFlow GPU kernel (v0.5 rowmask)";
+    return "SparseFlow GPU kernel (v0.6 warp accumulation)";
   }
 
   std::unique_ptr<Pass> clonePass() const override {
@@ -92,7 +92,7 @@ struct SparseFlowGpuRewritePass
       int64_t m = llvm::cast<IntegerAttr>(mAttr).getInt();
 
       if (n != 2 || m != 4) {
-        call.emitError("v0.5 supports only 2:4 sparsity");
+        call.emitError("v0.6 supports only 2:4 sparsity");
         signalPassFailure();
         return;
       }
@@ -177,10 +177,10 @@ struct SparseFlowGpuRewritePass
     Block *block = gpuModule.getBody();
     OpBuilder modBuilder(block->getTerminator());
 
-    buildV05Kernel(modBuilder, loc);
+    buildV06WarpKernel(modBuilder, loc);
   }
 
-  void buildV05Kernel(OpBuilder &builder, Location loc) {
+  void buildV06WarpKernel(OpBuilder &builder, Location loc) {
     auto f32 = builder.getF32Type();
     auto i32 = builder.getI32Type();
     auto index = builder.getIndexType();
@@ -205,13 +205,16 @@ struct SparseFlowGpuRewritePass
     Block &entry = kernel.getBody().front();
     OpBuilder b(&entry, entry.begin());
 
+    // Constants
     auto c0_i32 = b.create<arith::ConstantIntOp>(loc, 0, 32);
     auto c1_i32 = b.create<arith::ConstantIntOp>(loc, 1, 32);
     auto c32_i32 = b.create<arith::ConstantIntOp>(loc, 32, 32);
     auto c0 = b.create<arith::ConstantIndexOp>(loc, 0);
     auto c1 = b.create<arith::ConstantIndexOp>(loc, 1);
+    auto c32_idx = b.create<arith::ConstantIndexOp>(loc, 32);
     auto c0_f32 = b.create<arith::ConstantFloatOp>(loc, APFloat(0.0f), f32);
 
+    // Thread indexing
     auto tidx = b.create<gpu::ThreadIdOp>(loc, index, gpu::Dimension::x);
     auto bidx = b.create<gpu::BlockIdOp>(loc, index, gpu::Dimension::x);
     auto bdim = b.create<gpu::BlockDimOp>(loc, index, gpu::Dimension::x);
@@ -220,6 +223,14 @@ struct SparseFlowGpuRewritePass
     auto globalRow = b.create<arith::AddIOp>(loc, tidx, bidTimesBdim);
     auto globalRowI32 = b.create<arith::IndexCastOp>(loc, i32, globalRow);
     
+    // Lane ID
+    auto laneId = b.create<arith::RemUIOp>(loc, globalRowI32, c32_i32);
+    auto laneIdIdx = b.create<arith::IndexCastOp>(loc, index, laneId);
+    
+    // Get kernel args
+    Value A = entry.getArgument(0);
+    Value B = entry.getArgument(1);
+    Value C = entry.getArgument(2);
     Value rowMask = entry.getArgument(3);
     Value M = entry.getArgument(4);
     Value N = entry.getArgument(5);
@@ -228,6 +239,7 @@ struct SparseFlowGpuRewritePass
     auto inBounds = b.create<arith::CmpIOp>(loc, arith::CmpIPredicate::slt, globalRowI32, M);
     
     b.create<scf::IfOp>(loc, inBounds, [&](OpBuilder &thenB, Location thenLoc) {
+      // RowMask check
       auto word = thenB.create<arith::DivUIOp>(thenLoc, globalRowI32, c32_i32);
       auto bitPos = thenB.create<arith::RemUIOp>(thenLoc, globalRowI32, c32_i32);
       auto wordIdx = thenB.create<arith::IndexCastOp>(thenLoc, index, word);
@@ -240,15 +252,14 @@ struct SparseFlowGpuRewritePass
         auto NIdx = activeB.create<arith::IndexCastOp>(activeLoc, index, N);
         auto KIdx = activeB.create<arith::IndexCastOp>(activeLoc, index, K);
         
-        Value A = entry.getArgument(0);
-        Value B = entry.getArgument(1);
-        Value C = entry.getArgument(2);
-        
+        // Loop over output columns
         activeB.create<scf::ForOp>(
             activeLoc, c0, NIdx, c1, ValueRange{},
             [&](OpBuilder &jB, Location jLoc, Value j, ValueRange) {
-              auto acc = jB.create<scf::ForOp>(
-                  jLoc, c0, KIdx, c1, ValueRange{c0_f32.getResult()},
+              
+              // WARP ACCUMULATION: Each lane does K/32 elements
+              auto partialSum = jB.create<scf::ForOp>(
+                  jLoc, laneIdIdx, KIdx, c32_idx, ValueRange{c0_f32.getResult()},
                   [&](OpBuilder &kB, Location kLoc, Value k, ValueRange iterArgs) {
                     auto aVal = kB.create<memref::LoadOp>(kLoc, A, ValueRange{globalRow, k});
                     auto bVal = kB.create<memref::LoadOp>(kLoc, B, ValueRange{k, j});
@@ -256,9 +267,28 @@ struct SparseFlowGpuRewritePass
                     auto sum = kB.create<arith::AddFOp>(kLoc, iterArgs[0], mul);
                     kB.create<scf::YieldOp>(kLoc, sum.getResult());
                   });
-              jB.create<memref::StoreOp>(jLoc, acc.getResult(0), C, ValueRange{globalRow, j});
+              
+              // WARP REDUCTION: 5 shuffle steps (log2(32) = 5)
+              Value reduced = partialSum.getResult(0);
+              
+              // offset = 16, 8, 4, 2, 1
+              for (int offset = 16; offset >= 1; offset /= 2) {
+                auto offsetVal = jB.create<arith::ConstantIntOp>(jLoc, offset, 32);
+                auto shuffled = jB.create<gpu::ShuffleOp>(
+                    jLoc, reduced, offsetVal, c32_i32, gpu::ShuffleMode::XOR);
+                reduced = jB.create<arith::AddFOp>(jLoc, reduced, shuffled.getShuffleResult());
+              }
+              
+              // SINGLE WRITER: Only lane 0 writes result
+              auto isLane0 = jB.create<arith::CmpIOp>(jLoc, arith::CmpIPredicate::eq, laneId, c0_i32);
+              jB.create<scf::IfOp>(jLoc, isLane0, [&](OpBuilder &writeB, Location writeLoc) {
+                writeB.create<memref::StoreOp>(writeLoc, reduced, C, ValueRange{globalRow, j});
+                writeB.create<scf::YieldOp>(writeLoc);
+              });
+              
               jB.create<scf::YieldOp>(jLoc);
             });
+        
         activeB.create<scf::YieldOp>(activeLoc);
       });
       
