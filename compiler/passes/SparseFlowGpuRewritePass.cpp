@@ -196,11 +196,12 @@ struct SparseFlowGpuRewritePass
     auto fnType = builder.getFunctionType(argTypes, TypeRange{});
     
     auto kernel = builder.create<gpu::GPUFuncOp>(
-        loc, "sparseflow_gpu_matmul_2_4_f32", fnType,
+        loc, "sparseflow_tiled_kernel_v07", fnType,
         TypeRange{}, TypeRange{});
 
     kernel->setAttr(gpu::GPUDialect::getKernelFuncAttrName(),
                     builder.getUnitAttr());
+    kernel->setAttr("mode", builder.getStringAttr("tiled"));
 
     Block &entry = kernel.getBody().front();
     OpBuilder b(&entry, entry.begin());
