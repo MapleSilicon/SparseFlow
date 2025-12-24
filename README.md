@@ -1,69 +1,78 @@
 # SparseFlow
 
-SparseFlow is an MLIR-based compiler infrastructure for detecting and exploiting **structured N:M sparsity** in linear algebra workloads.
+SparseFlow is an MLIR-based compiler framework for **preserving, validating, and executing structured sparsity (N:M)** across the machine learning compilation pipeline.
 
-It performs **static compile-time sparsity analysis** and lowers sparse operations through CPU and GPU backends without runtime sparsity checks.
-
----
-
-## 🔍 What SparseFlow Does
-
-SparseFlow provides an end-to-end compiler pipeline that:
-
-1. Detects structured sparsity (N:M) at compile time
-2. Propagates sparsity through the IR
-3. Rewrites dense operations into sparse kernel calls
-4. Lowers sparse calls to backend-specific implementations (CPU / GPU)
+SparseFlow is developed and maintained by **Maple Silicon Inc.**  
+🌐 https://maplesilicon.co
 
 ---
 
-## 🧱 Compiler Pipeline (Current)
-```
-linalg.matmul (dense)
-  ↓ sparseflow-spa
-Annotated sparse matmul
-  ↓ sparseflow-rewrite-matmul
-func.call @sparse_matmul_N_M
-  ↓ sparseflow-gpu-rewrite
-gpu.launch + gpu.func (kernel stub)
-```
+## Overview
+
+Modern AI models increasingly exhibit **structured sparsity** (e.g. 2:4), but most software stacks still lower and execute these models as dense workloads. This leads to:
+
+- Wasted memory bandwidth
+- Higher power consumption
+- Underutilized silicon
+- Fragile, backend-specific optimizations
+
+SparseFlow addresses this problem at the **compiler level**, treating sparsity as a **first-class, verifiable property** rather than an afterthought.
 
 ---
 
-## 📌 Current Release
+## Design Philosophy
 
-**Version:** v0.3-alpha  
-**Status:** Architectural milestone (GPU lowering path validated)
+SparseFlow is built around three core principles:
 
-### Included
-- Static N:M sparsity propagation (SPA)
-- CPU sparse matmul rewrite
-- GPU lowering pass (`gpu.launch` + `gpu.func`)
-- Verifier-clean MLIR
-- End-to-end pipeline execution
+### 1. Compiler-Level Sparsity Contracts
+Sparsity is explicitly represented and validated during compilation, rather than inferred implicitly by backend kernels.
 
-### Not Included (by design)
-- GPU kernel implementation
-- Bufferization / memory lowering
-- Performance claims on GPU
+### 2. Correctness Before Performance
+SparseFlow prioritizes **end-to-end correctness and verifiability**.  
+Performance tuning is a later phase, not the starting point.
+
+### 3. Safe Fallbacks
+When sparsity constraints are not met, execution safely falls back to dense paths — avoiding silent correctness failures.
 
 ---
 
-## 🚧 Roadmap
+## What SparseFlow Does
 
-- v0.3-beta: GPU kernel ABI + memory mapping
-- v0.4: GPU sparse matmul implementation
-- v1.0: End-to-end optimized CPU + GPU backend
+SparseFlow provides a compiler pipeline discipline for structured sparsity, including:
+
+- Explicit representation of structured sparsity patterns (N:M, e.g. 2:4)
+- MLIR-based intermediate representations
+- Verified lowering and transformation passes
+- CPU and GPU execution paths
+- End-to-end sparsity metadata propagation and validation
+
+Rather than relying on opaque, backend-specific kernel behavior, SparseFlow ensures sparsity is either **preserved explicitly** or **rejected transparently** during compilation.
 
 ---
 
-## ⚠️ Disclaimer
+## Project Status
 
-SparseFlow v0.3-alpha is a **compiler architecture release**, not a performance release.  
-GPU kernels are placeholders for validation only.
+SparseFlow is in **active research and development**.
+
+Current state:
+- ✅ CPU correctness validated
+- ✅ Initial GPU functional validation completed
+- ⚠️ GPU kernels are not yet performance-optimized
+- 🚧 Benchmarking and cross-vendor validation in progress
+
+> SparseFlow is **not** a production-ready framework yet.  
+> Claims are intentionally conservative and evidence-driven.
 
 ---
 
-## 📄 License
+## Repository Structure
 
-MIT
+```text
+SparseFlow/
+├── compiler/
+│   ├── passes/        # MLIR transformation passes
+│   ├── runtime/       # CPU/GPU runtime components
+│   └── tools/         # Build and test utilities
+├── tests/             # Functional and correctness tests
+├── benchmarks/        # Early, non-optimized benchmarks
+└── docs/              # Design notes and documentation
