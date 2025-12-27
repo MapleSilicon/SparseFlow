@@ -1,0 +1,310 @@
+#include "micro_bench.h"
+#include "../kernels/kernels.h"
+#include <cmath>
+#include <algorithm>
+#include <numeric>
+#include <iostream>
+
+namespace sparseflow {
+
+static constexpr bool DENSE_TC_128_AVAILABLE = true;
+static constexpr bool HYBRID_NM_32_AVAILABLE = false;
+static constexpr bool SPARSE_NM_32_AVAILABLE = true;  // ENABLED
+static constexpr bool SPARSE_NM_64_AVAILABLE = false;
+
+bool MicroBenchmark::is_kernel_available(KernelID kernel) {
+  switch (kernel) {
+    case KernelID::DENSE_TC_128: return DENSE_TC_128_AVAILABLE;
+    case KernelID::HYBRID_NM_32: return HYBRID_NM_32_AVAILABLE;
+    case KernelID::SPARSE_NM_32: return SPARSE_NM_32_AVAILABLE;
+    case KernelID::SPARSE_NM_64: return SPARSE_NM_64_AVAILABLE;
+  }
+  return false;
+}
+
+static void flush_l2_cache() {
+  int device;
+  cudaGetDevice(&device);
+  
+  cudaDeviceProp prop;
+  cudaGetDeviceProperties(&prop, device);
+  
+  size_t l2_size = prop.l2CacheSize;
+  if (l2_size > 0) {
+    void* flush_buffer;
+    cudaMalloc(&flush_buffer, l2_size * 2);
+    cudaMemset(flush_buffer, 0, l2_size * 2);
+    cudaDeviceSynchronize();
+    cudaFree(flush_buffer);
+  }
+}
+
+MicroBenchmark::MicroBenchmark(const BenchmarkConfig& config)
+  : config_(config), cuda_initialized_(false) {
+  cudaEventCreate(&start_);
+  cudaEventCreate(&stop_);
+}
+
+MicroBenchmark::~MicroBenchmark() {
+  cudaEventDestroy(start_);
+  cudaEventDestroy(stop_);
+}
+
+void MicroBenchmark::ensure_cuda_context() {
+  if (!cuda_initialized_) {
+    void* dummy;
+    cudaMalloc(&dummy, 1);
+    cudaFree(dummy);
+    cudaDeviceSynchronize();
+    cuda_initialized_ = true;
+    std::cout << "[Benchmark] CUDA context initialized" << std::endl;
+  }
+}
+
+bool MicroBenchmark::launch_kernel(
+    KernelID kernel,
+    const MatmulDesc& desc,
+    void* A, void* B, void* C,
+    cudaStream_t stream) {
+  
+  if (!is_kernel_available(kernel)) {
+    return false;
+  }
+  
+  switch (kernel) {
+    case KernelID::DENSE_TC_128:
+      return launch_dense_tc_128(desc, A, B, C, stream);
+      
+    case KernelID::HYBRID_NM_32:
+      return false;
+      
+    case KernelID::SPARSE_NM_32:
+      return launch_sparse_nm_32(desc, A, B, C, stream);
+      
+    case KernelID::SPARSE_NM_64:
+      return false;
+  }
+  
+  return false;
+}
+
+BenchmarkResult MicroBenchmark::benchmark_kernel(
+    KernelID kernel,
+    const MatmulDesc& desc,
+    void* A, void* B, void* C,
+    cudaStream_t stream) {
+  
+  std::vector<float> times;
+  times.reserve(config_.timed_iters);
+  
+  bool retried = false;
+  int current_iters = config_.timed_iters;
+  
+  flush_l2_cache();
+  
+retry:
+  times.clear();
+  
+  for (int i = 0; i < config_.warmup_iters; ++i) {
+    if (!launch_kernel(kernel, desc, A, B, C, stream)) {
+      BenchmarkResult invalid;
+      invalid.kernel_id = kernel;
+      invalid.mean_time_ms = -1.0f;
+      invalid.throughput_gflops = 0.0f;
+      invalid.high_variance = true;
+      return invalid;
+    }
+  }
+  cudaStreamSynchronize(stream);
+  
+  for (int i = 0; i < current_iters; ++i) {
+    cudaEventRecord(start_, stream);
+    
+    if (!launch_kernel(kernel, desc, A, B, C, stream)) {
+      BenchmarkResult invalid;
+      invalid.kernel_id = kernel;
+      invalid.mean_time_ms = -1.0f;
+      invalid.throughput_gflops = 0.0f;
+      invalid.high_variance = true;
+      return invalid;
+    }
+    
+    cudaEventRecord(stop_, stream);
+    cudaEventSynchronize(stop_);
+    
+    float ms;
+    cudaEventElapsedTime(&ms, start_, stop_);
+    times.push_back(ms);
+  }
+  
+  float mean = std::accumulate(times.begin(), times.end(), 0.0f) / times.size();
+  
+  if (mean <= 0.0f || !std::isfinite(mean)) {
+    std::cerr << "[Benchmark] Invalid timing, rejecting" << std::endl;
+    BenchmarkResult invalid;
+    invalid.kernel_id = kernel;
+    invalid.mean_time_ms = -1.0f;
+    invalid.throughput_gflops = 0.0f;
+    invalid.high_variance = true;
+    return invalid;
+  }
+  
+  float variance = 0.0f;
+  for (float t : times) {
+    variance += (t - mean) * (t - mean);
+  }
+  variance /= times.size();
+  float stddev = std::sqrt(variance);
+  
+  float cv = (mean > 0) ? (stddev / mean) : 0.0f;
+  bool high_variance = cv > config_.variance_threshold;
+  
+  if (high_variance && config_.allow_retry && !retried) {
+    retried = true;
+    current_iters *= 2;
+    goto retry;
+  }
+  
+  BenchmarkResult result;
+  result.kernel_id = kernel;
+  result.mean_time_ms = mean;
+  result.stddev_ms = stddev;
+  result.throughput_gflops = compute_gflops(desc, kernel, mean);
+  result.high_variance = high_variance;
+  
+  return result;
+}
+
+float MicroBenchmark::compute_gflops(const MatmulDesc& desc, KernelID kernel, float time_ms) {
+  int64_t ops = 2LL * desc.M * desc.N * desc.K;
+  
+  const bool kernel_is_sparse =
+      (kernel == KernelID::SPARSE_NM_32) || (kernel == KernelID::SPARSE_NM_64);
+  
+  if (kernel_is_sparse && desc.sparsity_type == SparsityType::NM_2_4) {
+    ops /= 2;
+  }
+  
+  float time_s = time_ms / 1000.0f;
+  return static_cast<float>(ops) / (time_s * 1e9f);
+}
+
+KernelSelectionValue MicroBenchmark::run(
+    const std::vector<KernelID>& candidates,
+    const MatmulDesc& desc,
+    void* A, void* B, void* C,
+    cudaStream_t stream) {
+  
+  std::vector<KernelID> available;
+  for (KernelID k : candidates) {
+    if (is_kernel_available(k)) {
+      available.push_back(k);
+    }
+  }
+  
+  std::cout << "[Benchmark] " << available.size() << " of " << candidates.size() 
+            << " kernels implemented" << std::endl;
+  
+  if (available.empty()) {
+    KernelSelectionValue fallback;
+    fallback.kernel_id = KernelID::DENSE_TC_128;
+    fallback.throughput_gflops = 0.0f;
+    fallback.confidence = 0.0f;
+    fallback.samples = 0;
+    return fallback;
+  }
+  
+  ensure_cuda_context();
+  
+  void* A_tmp = A;
+  void* B_tmp = B;
+  void* C_tmp = C;
+  
+  size_t elem_size = (desc.dtype == DType::F32) ? 4 : 2;
+  size_t bytesA = (size_t)desc.M * desc.K * elem_size;
+  size_t bytesB = (size_t)desc.K * desc.N * elem_size;
+  size_t bytesC = (size_t)desc.M * desc.N * elem_size;
+  
+  bool allocated = false;
+  if (!A_tmp || !B_tmp || !C_tmp) {
+    cudaError_t e1 = cudaMalloc(&A_tmp, bytesA);
+    cudaError_t e2 = cudaMalloc(&B_tmp, bytesB);
+    cudaError_t e3 = cudaMalloc(&C_tmp, bytesC);
+    
+    if (e1 != cudaSuccess || e2 != cudaSuccess || e3 != cudaSuccess) {
+      if (A_tmp && A_tmp != A) cudaFree(A_tmp);
+      if (B_tmp && B_tmp != B) cudaFree(B_tmp);
+      if (C_tmp && C_tmp != C) cudaFree(C_tmp);
+      
+      KernelSelectionValue fallback;
+      fallback.kernel_id = KernelID::DENSE_TC_128;
+      fallback.throughput_gflops = 0.0f;
+      fallback.confidence = 0.0f;
+      fallback.samples = 0;
+      return fallback;
+    }
+    
+    cudaMemset(A_tmp, 0, bytesA);
+    cudaMemset(B_tmp, 0, bytesB);
+    cudaMemset(C_tmp, 0, bytesC);
+    allocated = true;
+  }
+  
+  std::vector<BenchmarkResult> results;
+  results.reserve(available.size());
+  
+  for (KernelID kernel : available) {
+    std::cout << "[Benchmark] Testing kernel " << static_cast<int>(kernel);
+    
+    switch(kernel) {
+      case KernelID::DENSE_TC_128: 
+        std::cout << " (DENSE)"; 
+        break;
+      case KernelID::SPARSE_NM_32: 
+        std::cout << " (SPARSE 2:4)"; 
+        break;
+      default: 
+        break;
+    }
+    std::cout << "..." << std::endl;
+    
+    auto result = benchmark_kernel(kernel, desc, A_tmp, B_tmp, C_tmp, stream);
+    
+    if (result.mean_time_ms > 0) {
+      results.push_back(result);
+      std::cout << "[Benchmark]   → " << result.throughput_gflops << " GFLOPS" << std::endl;
+    }
+  }
+  
+  if (allocated) {
+    cudaFree(A_tmp);
+    cudaFree(B_tmp);
+    cudaFree(C_tmp);
+  }
+  
+  if (results.empty()) {
+    KernelSelectionValue fallback;
+    fallback.kernel_id = KernelID::DENSE_TC_128;
+    fallback.throughput_gflops = 0.0f;
+    fallback.confidence = 0.0f;
+    fallback.samples = 0;
+    return fallback;
+  }
+  
+  auto winner = std::max_element(
+    results.begin(), results.end(),
+    [](const BenchmarkResult& a, const BenchmarkResult& b) {
+      return a.throughput_gflops < b.throughput_gflops;
+    }
+  );
+  
+  KernelSelectionValue value;
+  value.kernel_id = winner->kernel_id;
+  value.throughput_gflops = winner->throughput_gflops;
+  value.confidence = 1.0f;
+  value.samples = config_.timed_iters;
+  
+  return value;
+}
+
+} // namespace sparseflow
