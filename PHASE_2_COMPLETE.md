@@ -249,3 +249,15 @@ Phase-2 was completed over ~8 hours of focused development, including:
 **Status:** SHIPPED ✅
 
 **Next milestone:** Phase-3 (Fusion)
+
+---
+
+## Canonical Benchmark Results
+
+See `CANONICAL_RESULTS.md` for locked, reproducible performance data.
+
+**Key Finding:** Runtime correctly selects dense when it outperforms sparse.
+This is a feature, not a bug.
+
+**Phase-2 Achievement:** Built a runtime that makes honest, intelligent decisions.
+**Phase-3 Goal:** Build kernels where sparse actually wins (fusion, specialization).
