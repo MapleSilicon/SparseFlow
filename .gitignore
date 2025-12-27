@@ -1,25 +1,8 @@
-# Build artifacts
 build/
-*.so
 *.o
-*.pyc
-__pycache__/
-
-# Runtime outputs
-spa_sparsity.json
-/tmp/spa_benchmark.log
-
-# Python
-*.egg-info/
-dist/
-.sparseflow_package/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# System
+*.so
+*.a
+*.db
+*.tar.gz
 .DS_Store
-Thumbs.db
+.vscode/
