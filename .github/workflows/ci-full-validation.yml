@@ -2,11 +2,10 @@ name: SparseFlow v0.2 - Complete Validation
 
 on:
   push:
-    branches: [ master, main, v0.2-nm-sparsity ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ master, main, v0.2-nm-sparsity ]
+    branches: [ "main" ]
   workflow_dispatch:
-
 jobs:
   complete-validation:
     name: SparseFlow v0.2 Complete Validation & Demo
