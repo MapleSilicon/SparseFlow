@@ -1,10 +1,10 @@
 name: SparseFlow Demo (Working)
 
 on:
-  workflow_dispatch:
   push:
-    branches: [ master ]
-
+    branches: [ "v0.2-nm-sparsity" ]
+  pull_request:
+    branches: [ "v0.2-nm-sparsity" ]
 jobs:
   demo:
     runs-on: ubuntu-22.04
