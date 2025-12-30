@@ -100,7 +100,7 @@ This repository provides **exceptional technical evidence** for research funding
 
 ## 👨‍💻 Author
 
-**Gourav Singh**  
+**Gourav Kumar**  
 Founder, MapleSilicon  
 Advanced GPU Acceleration Research  
 
