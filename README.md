@@ -104,7 +104,7 @@ This repository provides **exceptional technical evidence** for research funding
 Founder, MapleSilicon  
 Advanced GPU Acceleration Research  
 
-- 📧 **Contact**: gourav@maplesilicon.com
+- 📧 **Contact**: info@maplesilicon.co
 - 🐙 **GitHub**: [github.com/MapleSilicon](https://github.com/MapleSilicon)
 
 ---
