@@ -1,0 +1,29 @@
+Results will be saved to: benchmark_results_20251211_091719.txt
+
+════════════════════════════════════════════════════════════════
+🔨 STEP 1: Rebuilding Runtime
+════════════════════════════════════════════════════════════════
+[ 20%] Built target sparseflow_runtime
+Consolidate compiler generated dependencies of target test_nm_runtime
+Consolidate compiler generated dependencies of target test_pattern_validation
+[ 30%] Building CXX object CMakeFiles/retest_8_32.dir/tests/retest_8_32.cpp.o
+[ 50%] Built target benchmark_nm_runtime
+[ 60%] Building CXX object CMakeFiles/test_nm_runtime.dir/tests/test_nm_runtime.cpp.o
+[ 70%] Building CXX object CMakeFiles/test_pattern_validation.dir/tests/test_pattern_validation.cpp.o
+[ 80%] Linking CXX executable test_pattern_validation
+[ 90%] Linking CXX executable test_nm_runtime
+/home/maplesilicon/SparseFlow/SparseFlow/runtime/tests/retest_8_32.cpp: In function ‘int main()’:
+/home/maplesilicon/SparseFlow/SparseFlow/runtime/tests/retest_8_32.cpp:74:10: error: ‘sort’ is not a member of ‘std’; did you mean ‘qsort’?
+   74 |     std::sort(dense_times.begin(), dense_times.end());
+      |          ^~~~
+      |          qsort
+/home/maplesilicon/SparseFlow/SparseFlow/runtime/tests/retest_8_32.cpp:75:10: error: ‘sort’ is not a member of ‘std’; did you mean ‘qsort’?
+   75 |     std::sort(sparse_times.begin(), sparse_times.end());
+      |          ^~~~
+      |          qsort
+make[2]: *** [CMakeFiles/retest_8_32.dir/build.make:76: CMakeFiles/retest_8_32.dir/tests/retest_8_32.cpp.o] Error 1
+make[1]: *** [CMakeFiles/Makefile2:195: CMakeFiles/retest_8_32.dir/all] Error 2
+make[1]: *** Waiting for unfinished jobs....
+[ 90%] Built target test_nm_runtime
+[ 90%] Built target test_pattern_validation
+make: *** [Makefile:91: all] Error 2
