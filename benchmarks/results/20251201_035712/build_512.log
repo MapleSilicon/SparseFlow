@@ -1,0 +1,91 @@
+=== SparseFlow v0.1 — Full Pipeline Build & Test ===
+
+=== Cleaning old build directories ===
+
+Using MLIR file for metadata export:
+  compiler/test/bench_512x512.mlir
+
+=== Step 1: Build SparseFlow Compiler Passes ===
+-- The C compiler identification is GNU 11.4.0
+-- The CXX compiler identification is GNU 11.4.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Performing Test HAVE_FFI_CALL
+-- Performing Test HAVE_FFI_CALL - Success
+-- Found FFI: /usr/lib/x86_64-linux-gnu/libffi.so  
+-- Looking for histedit.h
+-- Looking for histedit.h - found
+-- Found LibEdit: /usr/include (found version "2.11") 
+-- Found ZLIB: /usr/lib/x86_64-linux-gnu/libz.so (found version "1.2.11") 
+-- Found zstd: /usr/lib/x86_64-linux-gnu/libzstd.so  
+-- Found LibXml2: /usr/lib/x86_64-linux-gnu/libxml2.so (found version "2.9.13") 
+-- Found CURL: /usr/lib/x86_64-linux-gnu/libcurl.so (found version "7.81.0")  
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/maplesilicon/src/SparseFlow/compiler/build
+[ 20%] Building CXX object passes/CMakeFiles/SparseFlowPasses.dir/AnnotateNmPass.cpp.o
+[ 60%] Building CXX object passes/CMakeFiles/SparseFlowPasses.dir/FlopCounterPass.cpp.o
+[ 40%] Building CXX object passes/CMakeFiles/SparseFlowPasses.dir/SparseFlowPassPlugin.cpp.o
+[ 80%] Building CXX object passes/CMakeFiles/SparseFlowPasses.dir/ExportMetadataPass.cpp.o
+[100%] Linking CXX shared module SparseFlowPasses.so
+[100%] Built target SparseFlowPasses
+
+=== Step 2: Generate Hardware Configuration (hardware_config.json) ===
+Exporting matmul configuration from:
+  compiler/test/bench_512x512.mlir
+hardware_config.json written to:
+  /home/maplesilicon/src/SparseFlow/compiler/build/hardware_config.json
+
+=== Step 3: Build Runtime ===
+-- The C compiler identification is GNU 11.4.0
+-- The CXX compiler identification is GNU 11.4.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/maplesilicon/src/SparseFlow/runtime/build
+[ 50%] Building CXX object CMakeFiles/sparseflow_test.dir/src/main.cpp.o
+[100%] Linking CXX executable sparseflow_test
+[100%] Built target sparseflow_test
+
+=== Step 4: Run Runtime Demo ===
+[DEBUG] Attempting to load: ../../compiler/build/hardware_config.json
+[DEBUG] ✅ Config loaded from JSON
+[DEBUG] ✅ Config loaded from: ../../compiler/build/hardware_config.json
+
+=== Programming MapleSilicon Hardware ===
+Pattern: 2:4
+Dimensions: 512x512x512
+Data Type: f32
+HW_WRITE [0x1000] = 2 (N)
+HW_WRITE [0x1004] = 4 (M)
+HW_WRITE [0x1008] = 512 (dim_m)
+HW_WRITE [0x100c] = 512 (dim_n)
+HW_WRITE [0x1010] = 512 (dim_k)
+
+=== Executing Sparse Matmul ===
+Matrix: 512x512 * 512x512
+Total MACs: 134217728
+Executed MACs: 67108864
+Compute Efficiency: 50%
+Theoretical Speedup: 2.0x
+
+=== SparseFlow v0.1 Pipeline Complete! ===
+
+=== SparseFlow v0.1 Pipeline Complete! ===

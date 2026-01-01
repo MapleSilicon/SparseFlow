@@ -1,0 +1,11 @@
+using namespace mlir;
+using namespace sparseflow;
+
+namespace {
+
+using sparseflow::makeDense;
+using sparseflow::makeZero;
+using sparseflow::intersect2D;
+using sparseflow::union2D;
+
+struct SparsityPropagationPass
