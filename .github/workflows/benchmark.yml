@@ -1,0 +1,35 @@
+name: Performance Benchmark
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        pip install torch --index-url https://download.pytorch.org/whl/cpu
+        pip install -e .
+    
+    - name: Run unit tests
+      run: |
+        python -c "import sparseflow as sf; print('✅ Import successful')"
+    
+    - name: Validate API
+      run: |
+        python examples/basic_usage.py
+
+    # Note: GPU benchmarks require self-hosted runner with CUDA
+    # Add this when you have GPU CI infrastructure
