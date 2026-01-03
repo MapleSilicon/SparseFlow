@@ -10,6 +10,8 @@ readme = "README.md"
 requires-python = ">=3.8"
 dependencies = ["torch"]
 authors = [{ name = "Maple Silicon" }]
+license = "MIT"
+license-files = ["LICENSE"]
 
 [tool.setuptools]
 packages = { find = {} }
