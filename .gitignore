@@ -1,33 +1,14 @@
-# Build files
-*.so
 *.o
+*.so
 *.ptx
 *.sass
-build/
-CMakeFiles/
-CMakeCache.txt
-Makefile
-cmake_install.cmake
-
-# Python cache
+*.cubin
 __pycache__/
 *.pyc
-*.pyo
-
-# IDE files
-.vscode/
-.idea/
-*.swp
-*~
-
-# Data files
-*.bin
-*.dat
-
-# CUDA intermediate files
-*.fatbin
-*.cubin
-*.so
-*.ptx
-*.sass
+.cache/
+torch_extensions/
+*.log
+.DS_Store
 build/
+dist/
+*.egg-info
