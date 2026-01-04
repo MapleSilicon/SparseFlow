@@ -7,94 +7,57 @@
 Matrix Size | Dense (cuBLAS) | SparseFlow | Speedup
 ------------|----------------|------------|--------
 2048×2048   | 60 TFLOPS     | 96 TFLOPS  | 1.60×
-4096×4096   | 65 TFLOPS     | 128 TFLOPS | 1.96×
+4096×4096   | 65 TFLOPS     | 131 TFLOPS | 2.02×
 ```
 
-**Use SparseFlow for matrices ≥2048. Use dense for smaller sizes.**
+## ⚠️ GPU Requirements (CRITICAL)
+
+✅ **Supported:**
+- NVIDIA Ampere or newer (SM80+)
+- RTX 30-series (3090, 3080, 3070...)
+- RTX 40-series (4090, 4080, 4070...)
+- A100, A6000, A5000
+- H100, H200
+
+❌ **Not Supported:**
+- V100 (Volta)
+- T4 (Turing)  
+- RTX 20-series
+- GTX series
+- Pascal or older
 
 ## Quick Start
 ```bash
+# Install
 pip install sparseflow
+
+# Check GPU compatibility FIRST
+python3 -c "import sparseflow as sf; print(sf.check_sparse_support())"
 ```
+
+## Usage
 ```python
-import torch
 import sparseflow as sf
 
-# Your model weights (apply 2:4 sparsity pattern first)
-W = torch.randn(4096, 4096, device='cuda', dtype=torch.float16)
-W_sparse = apply_2_4_pattern(W)  # 50% zeros
+# Always check compatibility first
+if not sf.is_sparse_available():
+    print("GPU not supported - use dense operations")
+    exit()
 
-# Compress once
+# Your sparse inference code here
 Wc = sf.compress_2_4(W_sparse)
-
-# Fast inference (2× faster)
-x = torch.randn(4096, 4096, device='cuda', dtype=torch.float16)
-y = sf.sparse_mm(x, Wc)  # 128 TFLOPS vs 65 TFLOPS dense
+y = sf.sparse_mm(x, Wc)
 ```
 
 ## When to Use
 
-✅ **Use SparseFlow:** M ≥ 2048 (2× speedup)  
-⚠️ **Use dense:** M < 2048 (overhead dominates)
-
-## What is 2:4 Sparsity?
-
-Pattern where 2 out of every 4 consecutive values are zero:
-- **50% memory savings**
-- **50% fewer operations**
-- **2× speedup** at scale
-- **Native hardware support** (Ampere+ GPUs)
-
-## Installation
-```bash
-pip install sparseflow
-```
-
-**From source:**
-```bash
-git clone https://github.com/MapleSilicon/SparseFlow
-cd SparseFlow
-pip install -e .
-```
-
-## Requirements
-
-- NVIDIA GPU with Ampere+ architecture (RTX 30-series, A100, H100)
-- PyTorch ≥ 2.0
-- CUDA ≥ 11.0
-- Python ≥ 3.8
-
-## Benchmark
-```bash
-python3 benchmarks/bench_dense_vs_sparse.py
-```
-
-## API
-```python
-import sparseflow as sf
-
-# Compress weights with 2:4 pattern
-Wc = sf.compress_2_4(W_sparse)
-
-# Fast sparse matrix multiply
-y = sf.sparse_mm(x, Wc)
-```
+✅ **Use SparseFlow:** M ≥ 2048 on Ampere+ GPUs  
+⚠️ **Use dense:** M < 2048 or older GPUs
 
 ## License
 
 MIT
 
-## Citation
-```bibtex
-@software{sparseflow2025,
-  title = {SparseFlow: High-Performance 2:4 Sparse Inference},
-  author = {Maple Silicon Inc.},
-  year = {2025},
-  url = {https://github.com/MapleSilicon/SparseFlow}
-}
-```
+## Version
 
----
-
-**Built by [Maple Silicon Inc.](https://github.com/MapleSilicon)**  
-Compiler technology for AI infrastructure.
+v2.1.0 - GPU compatibility detection + safe fallbacks
