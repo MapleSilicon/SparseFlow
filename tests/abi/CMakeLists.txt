@@ -1,0 +1,4 @@
+add_executable(test_abi_stability test_abi_stability.c)
+target_link_libraries(test_abi_stability sparseflow)
+
+add_test(NAME ABIStability COMMAND test_abi_stability)
