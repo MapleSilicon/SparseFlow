@@ -15,3 +15,6 @@ experiments/archived/*.log
 .vscode/
 .DS_Store
 *.tmp
+*.tar.xz
+*.tar.gz
+experiments/cusparselt_baseline/*.tar.*
