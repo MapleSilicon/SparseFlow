@@ -20,3 +20,5 @@ experiments/archived/*.log
 experiments/cusparselt_baseline/*.tar.*
 *.bin
 *.so
+*.bin
+*.so
