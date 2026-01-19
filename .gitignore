@@ -1,24 +1,15 @@
-build/
-*.o
+# binaries
 *.so
-*.a
+*.ptx
+*.cubin
+
+# data / artifacts
+*.bin
+*.npy
+
+# python cache
 __pycache__/
 *.pyc
-benchmarks/results/*.json
-benchmarks/results/*.csv
-benchmarks/results/*.png
-!benchmarks/results/.gitkeep
-*.db
-*.db-journal
-experiments/archived/*.txt
-experiments/archived/*.log
-.vscode/
-.DS_Store
-*.tmp
-*.tar.xz
-*.tar.gz
-experiments/cusparselt_baseline/*.tar.*
-*.bin
-*.so
-*.bin
-*.so
+
+# build
+build/
