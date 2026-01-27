@@ -1,11 +1,13 @@
+"""SparseFlowLinear with per-op autotuned policy"""
 from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import Optional
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from .policy import SparseFlowPolicy
 
 
 def _require_cuda_fp16(x: torch.Tensor, name: str) -> None:
@@ -21,6 +23,7 @@ def prune_24_dense_weight(W: torch.Tensor) -> torch.Tensor:
     _require_cuda_fp16(W, "W")
     if W.dim() != 2:
         raise ValueError(f"W must be 2D, got {W.dim()}D")
+    
     out_f, in_f = W.shape
     if in_f % 4 != 0:
         raise ValueError(f"in_features must be multiple of 4 for 2:4 (got {in_f})")
@@ -32,22 +35,10 @@ def prune_24_dense_weight(W: torch.Tensor) -> torch.Tensor:
     return torch.where(mask, W4, torch.zeros_like(W4)).view(out_f, in_f)
 
 
-@dataclass(frozen=True)
-class SparseFlowPolicy:
-    min_M: int = 512
-
-    @staticmethod
-    def supports_sm80() -> bool:
-        if not torch.cuda.is_available():
-            return False
-        major, _minor = torch.cuda.get_device_capability()
-        return major >= 8
-
-
 class SparseFlowLinear(nn.Module):
     """
-    Correct sparse-weight path: y = F.linear(x, W_sparse, bias)
-    Avoids left-sparse transpose overhead
+    Linear layer with per-op autotuned sparse policy.
+    Uses sparse-weight path: y = F.linear(x, W_sparse, bias)
     """
 
     def __init__(
@@ -55,10 +46,10 @@ class SparseFlowLinear(nn.Module):
         weight_fp16: torch.Tensor,
         bias_fp16: Optional[torch.Tensor],
         policy: SparseFlowPolicy = SparseFlowPolicy(),
-        name: str = "SparseFlowLinear",
+        op_name: str = "default",
     ):
         super().__init__()
-        self.name = name
+        self.op_name = op_name
         self.policy = policy
 
         _require_cuda_fp16(weight_fp16, "weight_fp16")
@@ -87,28 +78,33 @@ class SparseFlowLinear(nn.Module):
             pass
 
     def extra_repr(self) -> str:
-        return f"name={self.name}, in={self.in_features}, out={self.out_features}, min_M={self.policy.min_M}, sparse_weight={self._supports_sparse_weight}"
+        return (
+            f"op_name={self.op_name}, in={self.in_features}, out={self.out_features}, "
+            f"sparse_weight={self._supports_sparse_weight}"
+        )
 
     @torch.no_grad()
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         _require_cuda_fp16(x, "x")
         if x.shape[-1] != self.in_features:
-            raise ValueError(f"{self.name}: expected {self.in_features}, got {x.shape[-1]}")
+            raise ValueError(f"Expected last dim {self.in_features}, got {x.shape[-1]}")
 
+        # Calculate effective M
         leading = x.shape[:-1]
         M = 1
         for d in leading:
             M *= int(d)
 
+        # Use per-op policy
         use_sparse = (
             self.policy.supports_sm80()
             and self._supports_sparse_weight
-            and M >= self.policy.min_M
+            and self.policy.should_use_sparse(self.op_name, M)
         )
 
         x2d = x.reshape(M, self.in_features).contiguous()
 
-        # CORRECT PATH: F.linear with sparse weight
+        # Sparse-weight path (correct for LLM linears)
         if use_sparse:
             y2d = F.linear(x2d, self.W_sparse, self.bias)
         else:
@@ -125,10 +121,13 @@ class SparseFlowLinear(nn.Module):
 def make_sparseflow_linear(
     dense_linear: nn.Linear,
     policy: SparseFlowPolicy = SparseFlowPolicy(),
-    name: str = "SparseFlowLinear",
+    op_name: str = "default",
 ) -> SparseFlowLinear:
+    """Convert nn.Linear to SparseFlowLinear with op-specific policy"""
     if not isinstance(dense_linear, nn.Linear):
         raise TypeError("dense_linear must be torch.nn.Linear")
+    
     W = dense_linear.weight.detach()
     b = dense_linear.bias.detach() if dense_linear.bias is not None else None
-    return SparseFlowLinear(W, b, policy=policy, name=name)
+    
+    return SparseFlowLinear(W, b, policy=policy, op_name=op_name)
