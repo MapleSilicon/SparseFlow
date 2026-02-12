@@ -16,3 +16,6 @@ build/
 
 # backup files
 *.backup
+
+# local caches
+sparseflow_cache/
