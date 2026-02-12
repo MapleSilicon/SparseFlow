@@ -56,10 +56,6 @@ class SparseFlowLinear(nn.Module):
         if bias_fp16 is not None:
             _require_cuda_fp16(bias_fp16, "bias_fp16")
 
-        # Store ORIGINAL weights for fallback (critical for performance!)
-        self.register_buffer("W_original", weight_fp16.contiguous(), persistent=True)
-        
-        # Store pruned weights for sparse path
         W_pruned = prune_24_dense_weight(weight_fp16.contiguous())
         self.register_buffer("W_dense_pruned", W_pruned, persistent=True)
         self.W_sparse = torch.sparse.to_sparse_semi_structured(self.W_dense_pruned)
@@ -108,12 +104,11 @@ class SparseFlowLinear(nn.Module):
 
         x2d = x.reshape(M, self.in_features).contiguous()
 
-        # Sparse path: use tensor cores
+        # Sparse-weight path (correct for LLM linears)
         if use_sparse:
             y2d = F.linear(x2d, self.W_sparse, self.bias)
         else:
-            # Fallback: use ORIGINAL dense weights (not pruned!)
-            y2d = F.linear(x2d, self.W_original, self.bias)
+            y2d = F.linear(x2d, self.W_dense_pruned, self.bias)
 
         return y2d.reshape(*leading, self.out_features)
 

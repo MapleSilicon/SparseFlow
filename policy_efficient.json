@@ -1,0 +1,36 @@
+{
+  "ops": {
+    "gate_proj": {
+      "min_m": 256,
+      "max_m": 2048,
+      "comment": "1.21-1.30× proven win zone, avoid >2048 where metadata overhead dominates"
+    },
+    "up_proj": {
+      "min_m": 256,
+      "max_m": 2048,
+      "comment": "Same profile as gate_proj"
+    },
+    "down_proj": {
+      "min_m": 512,
+      "max_m": 2048,
+      "comment": "Needs M≥512 to overcome overhead, avoid >2048"
+    },
+    "q_proj": {
+      "min_m": 512,
+      "max_m": 2048,
+      "comment": "Conservative: avoid until tuned"
+    },
+    "k_proj": {
+      "min_m": 512,
+      "max_m": 2048
+    },
+    "v_proj": {
+      "min_m": 512,
+      "max_m": 2048
+    },
+    "o_proj": {
+      "min_m": 512,
+      "max_m": 2048
+    }
+  }
+}
