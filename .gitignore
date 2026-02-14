@@ -19,3 +19,11 @@ build/
 
 # local caches
 sparseflow_cache/
+
+# local backup files
+*.before_*
+*.bak_*
+
+# local backup files
+*.before_*
+*.bak_*
