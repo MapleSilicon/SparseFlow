@@ -14,3 +14,7 @@ __all__ = [
     'compile_sparseflow_model',
     'CompiledSparseFlowModel',
 ]
+
+# SparseFlow MLP module
+from sparseflow.nn.sparseflow_mlp import SparseFlowMLP, make_sparseflow_mlp
+__all__.extend(['SparseFlowMLP', 'make_sparseflow_mlp'])

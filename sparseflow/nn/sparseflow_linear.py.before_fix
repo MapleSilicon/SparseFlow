@@ -62,8 +62,7 @@ class SparseFlowLinear(nn.Module):
         # Store pruned weights for sparse path
         W_pruned = prune_24_dense_weight(weight_fp16.contiguous())
         self.register_buffer("W_dense_pruned", W_pruned, persistent=True)
-        # CRITICAL: Must be a buffer to survive torch.compile
-        self.register_buffer('W_sparse', torch.sparse.to_sparse_semi_structured(self.W_dense_pruned), persistent=False)
+        self.W_sparse = torch.sparse.to_sparse_semi_structured(self.W_dense_pruned)
 
         if bias_fp16 is not None:
             self.register_buffer("bias", bias_fp16.contiguous(), persistent=True)
@@ -117,13 +116,7 @@ class SparseFlowLinear(nn.Module):
         # Sparse path: use tensor cores
         if use_sparse:
             self._sparse_count += 1
-            # Use _sparse_semi_structured_mm - try without contiguous
-            Ws = self.W_sparse
-            x2d_T = x2d.transpose(0, 1)  # NO contiguous
-            y2d_T = torch.ops.aten._sparse_semi_structured_mm(Ws.packed, Ws.meta, x2d_T)
-            y2d = y2d_T.transpose(0, 1)  # NO contiguous
-            if self.bias is not None:
-                y2d = y2d + self.bias
+            y2d = F.linear(x2d, self.W_sparse, self.bias)
         else:
             # Fallback: use ORIGINAL dense weights (not pruned!)
             self._dense_count += 1
