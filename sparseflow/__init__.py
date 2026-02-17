@@ -1,12 +1,10 @@
 """
 SparseFlow package.
-
 IMPORTANT:
 - Keep this __init__ lightweight.
 - Do NOT hard-import submodules that may depend on CUDA builds / optional ops.
 - Re-export symbols *best-effort* so `import sparseflow` doesn't crash.
 """
-
 from importlib import import_module
 
 __all__ = []
@@ -20,10 +18,13 @@ def _safe_export(mod: str, names: list[str]) -> None:
                 g[n] = getattr(m, n)
                 __all__.append(n)
     except Exception:
-        # swallow import errors so package import stays healthy
         pass
 
-# Best-effort re-exports
+# Core v2: dispatch + fused MLP
+_safe_export("sparseflow.dispatch", ["should_use_sparse", "classify_projection"])
+_safe_export("sparseflow.fused_mlp", ["SparseFlowFusedMLP"])
+
+# Legacy re-exports
 _safe_export("sparseflow.nn.policy", ["SparseFlowPolicy"])
 _safe_export("sparseflow.nn.sparseflow_linear", ["SparseFlowLinear", "make_sparseflow_linear", "prune_24_dense_weight"])
 _safe_export("sparseflow.nn.sparseflow_mlp", ["SparseFlowMLP", "make_sparseflow_mlp"])
