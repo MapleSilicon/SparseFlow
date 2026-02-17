@@ -121,7 +121,7 @@ class SparseFlowLinear(nn.Module):
             Ws = self.W_sparse
             x2d_T = x2d.transpose(0, 1)  # NO contiguous
             y2d_T = torch.ops.aten._sparse_semi_structured_mm(Ws.packed, Ws.meta, x2d_T)
-            y2d = y2d_T.transpose(0, 1)  # NO contiguous
+            y2d = y2d_T.transpose(0, 1).contiguous()  # Force contiguous!
             if self.bias is not None:
                 y2d = y2d + self.bias
         else:

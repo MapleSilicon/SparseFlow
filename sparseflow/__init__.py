@@ -1,20 +1,30 @@
-"""SparseFlow: Hardware-aware sparse inference for A100"""
+"""
+SparseFlow package.
 
-from sparseflow.nn.sparseflow_linear import SparseFlowLinear, make_sparseflow_linear, prune_24_dense_weight
-from sparseflow.nn.policy import SparseFlowPolicy
-from sparseflow.compiled_model import compile_sparseflow_model, CompiledSparseFlowModel
+IMPORTANT:
+- Keep this __init__ lightweight.
+- Do NOT hard-import submodules that may depend on CUDA builds / optional ops.
+- Re-export symbols *best-effort* so `import sparseflow` doesn't crash.
+"""
 
-__version__ = "2.2.0.post1"
+from importlib import import_module
 
-__all__ = [
-    'SparseFlowLinear',
-    'make_sparseflow_linear', 
-    'SparseFlowPolicy',
-    'prune_24_dense_weight',
-    'compile_sparseflow_model',
-    'CompiledSparseFlowModel',
-]
+__all__ = []
 
-# SparseFlow MLP module
-from sparseflow.nn.sparseflow_mlp import SparseFlowMLP, make_sparseflow_mlp
-__all__.extend(['SparseFlowMLP', 'make_sparseflow_mlp'])
+def _safe_export(mod: str, names: list[str]) -> None:
+    try:
+        m = import_module(mod)
+        g = globals()
+        for n in names:
+            if hasattr(m, n):
+                g[n] = getattr(m, n)
+                __all__.append(n)
+    except Exception:
+        # swallow import errors so package import stays healthy
+        pass
+
+# Best-effort re-exports
+_safe_export("sparseflow.nn.policy", ["SparseFlowPolicy"])
+_safe_export("sparseflow.nn.sparseflow_linear", ["SparseFlowLinear", "make_sparseflow_linear", "prune_24_dense_weight"])
+_safe_export("sparseflow.nn.sparseflow_mlp", ["SparseFlowMLP", "make_sparseflow_mlp"])
+_safe_export("sparseflow.nn.surgery", ["replace_llama_mlp_module"])

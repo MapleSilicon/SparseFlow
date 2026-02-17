@@ -57,7 +57,7 @@ class SparseLinear(nn.Module):
             diff_report: Optional accuracy report (if return_diff=True)
         """
         # Get weight
-        weight = dense_linear.weight.data
+        weight = dense_linear.weight.detach()
         
         # Prune to 2:4 pattern
         weight_sparse = sf.prune_2_4(weight, method=method)
@@ -74,7 +74,7 @@ class SparseLinear(nn.Module):
         sparse_linear = SparseLinear(
             weight_compressed,
             metadata=None,
-            bias=dense_linear.bias.data if dense_linear.bias is not None else None
+            bias=dense_linear.bias.detach() if dense_linear.bias is not None else None
         )
         
         # Measure accuracy impact if requested
