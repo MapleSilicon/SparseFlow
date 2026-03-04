@@ -1,29 +1,6 @@
-# binaries
-*.so
-*.ptx
-*.cubin
-
-# data / artifacts
-*.bin
-*.npy
-
-# python cache
 __pycache__/
 *.pyc
-
-# build
-build/
-
-# backup files
-*.backup
-
-# local caches
-sparseflow_cache/
-
-# local backup files
-*.before_*
-*.bak_*
-
-# local backup files
-*.before_*
-*.bak_*
+*.log
+*.tmp
+demo/results/run_*.json
+demo/results/run_*.md
