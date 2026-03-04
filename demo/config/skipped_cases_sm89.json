@@ -1,0 +1,125 @@
+{
+  "source_run": "demo/results/run_20260304_160101.json",
+  "skipped": [
+    {
+      "shape": "ffn_gate",
+      "batch": 256,
+      "seq_len": 512,
+      "M_eff": 131072,
+      "proj_type": "ffn_gate_up",
+      "threshold": 256,
+      "reason": "M_eff=131072 < threshold 256 for ffn_gate_up \u2014 dense is faster",
+      "recommendation": "dense"
+    },
+    {
+      "shape": "ffn_gate",
+      "batch": 512,
+      "seq_len": 256,
+      "M_eff": 131072,
+      "proj_type": "ffn_gate_up",
+      "threshold": 256,
+      "reason": "M_eff=131072 < threshold 256 for ffn_gate_up \u2014 dense is faster",
+      "recommendation": "dense"
+    },
+    {
+      "shape": "ffn_gate",
+      "batch": 512,
+      "seq_len": 512,
+      "M_eff": 262144,
+      "proj_type": "ffn_gate_up",
+      "threshold": 256,
+      "reason": "M_eff=262144 < threshold 256 for ffn_gate_up \u2014 dense is faster",
+      "recommendation": "dense"
+    },
+    {
+      "shape": "ffn_gate",
+      "batch": 1024,
+      "seq_len": 128,
+      "M_eff": 131072,
+      "proj_type": "ffn_gate_up",
+      "threshold": 256,
+      "reason": "M_eff=131072 < threshold 256 for ffn_gate_up \u2014 dense is faster",
+      "recommendation": "dense"
+    },
+    {
+      "shape": "ffn_gate",
+      "batch": 1024,
+      "seq_len": 256,
+      "M_eff": 262144,
+      "proj_type": "ffn_gate_up",
+      "threshold": 256,
+      "reason": "M_eff=262144 < threshold 256 for ffn_gate_up \u2014 dense is faster",
+      "recommendation": "dense"
+    },
+    {
+      "shape": "ffn_gate",
+      "batch": 1024,
+      "seq_len": 512,
+      "M_eff": 524288,
+      "proj_type": "ffn_gate_up",
+      "threshold": 256,
+      "reason": "M_eff=524288 < threshold 256 for ffn_gate_up \u2014 dense is faster",
+      "recommendation": "dense"
+    },
+    {
+      "shape": "ffn_down",
+      "batch": 512,
+      "seq_len": 512,
+      "M_eff": 262144,
+      "proj_type": "ffn_down",
+      "threshold": 512,
+      "reason": "M_eff=262144 < threshold 512 for ffn_down \u2014 dense is faster",
+      "recommendation": "dense"
+    },
+    {
+      "shape": "ffn_down",
+      "batch": 1024,
+      "seq_len": 256,
+      "M_eff": 262144,
+      "proj_type": "ffn_down",
+      "threshold": 512,
+      "reason": "M_eff=262144 < threshold 512 for ffn_down \u2014 dense is faster",
+      "recommendation": "dense"
+    },
+    {
+      "shape": "ffn_down",
+      "batch": 1024,
+      "seq_len": 512,
+      "M_eff": 524288,
+      "proj_type": "ffn_down",
+      "threshold": 512,
+      "reason": "M_eff=524288 < threshold 512 for ffn_down \u2014 dense is faster",
+      "recommendation": "dense"
+    },
+    {
+      "shape": "attn_qkv",
+      "batch": 512,
+      "seq_len": 512,
+      "M_eff": 262144,
+      "proj_type": "attn_proj",
+      "threshold": 320,
+      "reason": "M_eff=262144 < threshold 320 for attn_proj \u2014 dense is faster",
+      "recommendation": "dense"
+    },
+    {
+      "shape": "attn_qkv",
+      "batch": 1024,
+      "seq_len": 256,
+      "M_eff": 262144,
+      "proj_type": "attn_proj",
+      "threshold": 320,
+      "reason": "M_eff=262144 < threshold 320 for attn_proj \u2014 dense is faster",
+      "recommendation": "dense"
+    },
+    {
+      "shape": "attn_qkv",
+      "batch": 1024,
+      "seq_len": 512,
+      "M_eff": 524288,
+      "proj_type": "attn_proj",
+      "threshold": 320,
+      "reason": "M_eff=524288 < threshold 320 for attn_proj \u2014 dense is faster",
+      "recommendation": "dense"
+    }
+  ]
+}
