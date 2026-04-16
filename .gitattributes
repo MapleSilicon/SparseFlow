@@ -1,0 +1,15 @@
+# Keep third-party and generated artifacts out of GitHub language stats and
+# default review surfaces while leaving the repository public.
+cutlass/** linguist-vendored
+benchmarks/results/** linguist-generated
+demo/results/** linguist-generated
+experiments/**/*.bin linguist-generated
+experiments/**/*.npy linguist-generated
+experiments/**/check_sparse linguist-generated
+experiments/**/cublas_test linguist-generated
+experiments/**/mma_bulletproof linguist-generated
+experiments/**/naive_gemm linguist-generated
+experiments/**/sparse_gemm_simple linguist-generated
+experiments/**/test_native_sparse linguist-generated
+experiments/**/sparse_verify linguist-generated
+kernels/**/compile.log linguist-generated
